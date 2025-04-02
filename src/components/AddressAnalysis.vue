@@ -47,8 +47,13 @@
         </div>
         <div class="result-card">
           <div class="card-icon">💰</div>
-          <h3>总交易金额</h3>
-          <p>{{ analysisResult.totalValue }} USDT</p>
+          <h3>转入金额</h3>
+          <p>{{ analysisResult.totalInValue }} USDT</p>
+        </div>
+        <div class="result-card">
+          <div class="card-icon">💸</div>
+          <h3>转出金额</h3>
+          <p>{{ analysisResult.totalOutValue }} USDT</p>
         </div>
         <div class="result-card">
           <div class="card-icon">⏰</div>
@@ -81,14 +86,14 @@
             <div class="col">状态</div>
           </div>
           <div v-for="tx in transactions" :key="tx.transaction_id" class="transaction-item">
-            <div class="col">{{ formatDate(tx.block_ts) }}</div>
-            <div class="col">
+            <div class="col" data-label="时间">{{ formatDate(tx.block_ts) }}</div>
+            <div class="col" data-label="类型">
               <span :class="['tx-type', tx.from_address === address ? 'out' : 'in']">
                 {{ tx.from_address === address ? '转出' : '转入' }}
               </span>
             </div>
-            <div class="col">{{ formatAmount(tx.quant) }} USDT</div>
-            <div class="col">
+            <div class="col" data-label="金额">{{ formatAmount(tx.quant) }} USDT</div>
+            <div class="col" data-label="状态">
               <span :class="['tx-status', tx.contractRet === 'SUCCESS' ? 'success' : 'failed']">
                 {{ tx.contractRet }}
               </span>
@@ -280,13 +285,14 @@ const analyzeAddress = async () => {
 
     // 计算分析结果
     const totalTransactions = transactions.value.length
-    const totalValue = calculateTotalValue(transactions.value, addressType)
+    const { totalIn, totalOut } = calculateInOutValues(transactions.value, address.value)
     const firstTransactionTime = getFirstTransactionTimestamp(transactions.value)
     const transactionFrequency = analyzeProfile(transactions.value)
 
     analysisResult.value = {
       totalTransactions,
-      totalValue: formatAmount(totalValue),
+      totalInValue: formatAmount(totalIn),
+      totalOutValue: formatAmount(totalOut),
       firstTransactionTime: formatDate(firstTransactionTime),
       transactionFrequency
     }
@@ -308,39 +314,59 @@ const calculateTotalValue = (transactions, type) => {
   } else {
     return transactions.reduce((sum, tx) => {
       const amount = tx.quant || 0
-      return sum + parseFloat(amount) / 1e6 // USDT 有 6 位小数
+      return sum + parseFloat(amount)
     }, 0)
   }
 }
 
+const calculateInOutValues = (transactions, address) => {
+  let totalIn = 0
+  let totalOut = 0
+  
+  transactions.forEach(tx => {
+    const amount = parseFloat(tx.quant || 0) / 1e6
+    if (tx.from_address === address) {
+      totalOut += amount
+    } else {
+      totalIn += amount
+    }
+  })
+  
+  return { totalIn, totalOut }
+}
+
 const getFirstTransactionTimestamp = (transactions) => {
   if (!transactions || transactions.length === 0) return null
+  // 获取最早的交易时间
   return transactions[transactions.length - 1]?.block_ts / 1000
 }
 
 const analyzeProfile = (transactions) => {
   if (!transactions || transactions.length === 0) {
-    return { type: '无交易', description: '该地址暂无交易记录' }
+    return '无交易'
   }
 
-  const totalValue = calculateTotalValue(transactions, 'TRON')
+  const totalTransactions = transactions.length
   const firstTx = getFirstTransactionTimestamp(transactions)
   const now = Date.now() / 1000
-  const days = (now - firstTx) / (24 * 60 * 60)
-  const frequency = transactions.length / days
+  const days = Math.max(1, (now - firstTx) / (24 * 60 * 60)) // 至少1天
+  const frequency = totalTransactions / days
 
   let profileType = '普通用户'
   let description = ''
 
-  if (totalValue > 100000) {
-    profileType = '大户'
-    description = '该地址交易频繁，交易金额较大，可能是机构投资者或专业交易者。'
-  } else if (frequency > 1) {
+  if (frequency > 10) {
+    profileType = '高频用户'
+    description = '该地址交易非常频繁，可能是专业交易者或机器人。'
+  } else if (frequency > 3) {
     profileType = '活跃用户'
-    description = '该地址交易较为频繁，但单笔交易金额较小，可能是普通用户。'
+    description = '该地址交易较为频繁，可能是普通用户。'
+  } else if (frequency > 0.1) {
+    profileType = '普通用户'
+    description = '该地址交易频率正常，可能是普通散户投资者。'
   } else {
     profileType = '低频用户'
-    description = '该地址交易频率较低，可能是普通散户投资者。'
+    description = '该地址交易频率较低，可能是长期持有者。'
   }
 
   return `${profileType} (${frequency.toFixed(2)}笔/天)`
@@ -348,18 +374,20 @@ const analyzeProfile = (transactions) => {
 
 const formatAmount = (value) => {
   if (!value) return '0.0000'
-  return (parseFloat(value) / 1e6).toFixed(4)
+  return parseFloat(value).toFixed(4)
 }
 
 const formatDate = (timestamp) => {
   if (!timestamp) return '暂无数据'
-  return new Date(timestamp * 1000).toLocaleString('zh-CN', {
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
+    timeZone: 'Asia/Shanghai'
   })
 }
 
@@ -519,7 +547,7 @@ const drawTransactionChart = (transactions, type) => {
 
 .result-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 20px;
   margin-bottom: 20px;
 }
@@ -645,15 +673,15 @@ const drawTransactionChart = (transactions, type) => {
 
 @media (max-width: 768px) {
   .hero-section {
-    padding: 40px 20px;
+    padding: 30px 15px;
   }
   
   .hero-section h1 {
-    font-size: 2em;
+    font-size: 1.8em;
   }
   
   .hero-section p {
-    font-size: 1em;
+    font-size: 0.9em;
   }
   
   .input-group {
@@ -662,6 +690,96 @@ const drawTransactionChart = (transactions, type) => {
   
   .analyze-btn {
     width: 100%;
+  }
+
+  .result-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .result-card {
+    padding: 15px;
+  }
+
+  .result-card h3 {
+    font-size: 14px;
+  }
+
+  .result-card p {
+    font-size: 18px;
+  }
+
+  .chart-container {
+    height: 300px;
+  }
+
+  .list-columns, .transaction-item {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .list-columns {
+    display: none;
+  }
+
+  .transaction-item {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+  }
+
+  .transaction-item .col {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+
+  .transaction-item .col:before {
+    content: attr(data-label);
+    color: #64748b;
+    font-weight: 500;
+  }
+
+  .transaction-item .col:nth-child(1):before {
+    content: '时间';
+  }
+
+  .transaction-item .col:nth-child(2):before {
+    content: '类型';
+  }
+
+  .transaction-item .col:nth-child(3):before {
+    content: '金额';
+  }
+
+  .transaction-item .col:nth-child(4):before {
+    content: '状态';
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-section h1 {
+    font-size: 1.5em;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-card {
+    padding: 12px;
+  }
+
+  .result-card h3 {
+    font-size: 13px;
+  }
+
+  .result-card p {
+    font-size: 16px;
+  }
+
+  .chart-container {
+    height: 250px;
   }
 }
 </style>

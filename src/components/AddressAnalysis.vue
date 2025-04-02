@@ -86,7 +86,7 @@
             <div class="col">状态</div>
           </div>
           <div v-for="tx in transactions" :key="tx.transaction_id" class="transaction-item">
-            <div class="col" data-label="时间">{{ formatDate(tx.block_ts) }}</div>
+            <div class="col" data-label="时间">{{ formatDate(tx.block_ts / 1000) }}</div>
             <div class="col" data-label="类型">
               <span :class="['tx-type', tx.from_address === address ? 'out' : 'in']">
                 {{ tx.from_address === address ? '转出' : '转入' }}

@@ -92,10 +92,10 @@
                 {{ tx.from_address === address ? '转出' : '转入' }}
               </span>
             </div>
-            <div class="col" data-label="金额">{{ formatAmount(tx.quant) }} USDT</div>
+            <div class="col" data-label="金额">{{ formatAmount(tx.quant / 1e6) }} USDT</div>
             <div class="col" data-label="状态">
               <span :class="['tx-status', tx.contractRet === 'SUCCESS' ? 'success' : 'failed']">
-                {{ tx.contractRet }}
+                {{ tx.contractRet === 'SUCCESS' ? '成功' : '失败' }}
               </span>
             </div>
           </div>
@@ -554,24 +554,33 @@ const drawTransactionChart = (transactions, type) => {
 
 .result-card {
   text-align: center;
-  padding: 20px;
+  padding: 24px;
   background: #f8fafc;
-  border-radius: 12px;
+  border-radius: 16px;
   transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
 }
 
 .result-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  border-color: #3b82f6;
 }
 
 .card-icon {
-  font-size: 24px;
-  margin-bottom: 10px;
+  font-size: 32px;
+  margin-bottom: 16px;
+  background: #fff;
+  width: 64px;
+  height: 64px;
+  line-height: 64px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .result-card h3 {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 16px;
   font-weight: 600;
   color: #64748b;
@@ -579,9 +588,13 @@ const drawTransactionChart = (transactions, type) => {
 
 .result-card p {
   margin: 0;
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   color: #1e293b;
+  background: #fff;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .chart-container {
@@ -595,7 +608,7 @@ const drawTransactionChart = (transactions, type) => {
   border-radius: 16px;
   padding: 24px;
   margin-top: 30px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .list-header {
@@ -611,23 +624,28 @@ const drawTransactionChart = (transactions, type) => {
   margin: 0;
   font-size: 20px;
   color: #1e293b;
+  font-weight: 600;
 }
 
 .list-stats {
   color: #64748b;
   font-size: 14px;
+  background: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: 20px;
 }
 
 .list-columns {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 20px;
-  padding: 12px;
+  padding: 16px;
   background: #f8fafc;
-  border-radius: 8px;
+  border-radius: 12px;
   font-weight: 600;
   color: #64748b;
   margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .transaction-item {
@@ -637,38 +655,47 @@ const drawTransactionChart = (transactions, type) => {
   padding: 16px;
   border-bottom: 1px solid #e2e8f0;
   transition: all 0.2s ease;
+  border-radius: 8px;
 }
 
 .transaction-item:hover {
   background-color: #f8fafc;
+  transform: translateX(4px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .tx-type, .tx-status {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 6px 16px;
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
+  text-align: center;
+  min-width: 80px;
 }
 
 .tx-type.in {
   background: rgba(76, 175, 80, 0.1);
   color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
 .tx-type.out {
   background: rgba(244, 67, 54, 0.1);
   color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.2);
 }
 
 .tx-status.success {
   background: rgba(76, 175, 80, 0.1);
   color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
 .tx-status.failed {
   background: rgba(244, 67, 54, 0.1);
   color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.2);
 }
 
 @media (max-width: 768px) {
@@ -712,48 +739,37 @@ const drawTransactionChart = (transactions, type) => {
     height: 300px;
   }
 
-  .list-columns, .transaction-item {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .list-columns {
-    display: none;
-  }
-
   .transaction-item {
-    padding: 12px;
+    padding: 16px;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    margin-bottom: 10px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  .transaction-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   }
 
   .transaction-item .col {
     display: flex;
     justify-content: space-between;
-    padding: 4px 0;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .transaction-item .col:last-child {
+    border-bottom: none;
   }
 
   .transaction-item .col:before {
     content: attr(data-label);
     color: #64748b;
     font-weight: 500;
-  }
-
-  .transaction-item .col:nth-child(1):before {
-    content: '时间';
-  }
-
-  .transaction-item .col:nth-child(2):before {
-    content: '类型';
-  }
-
-  .transaction-item .col:nth-child(3):before {
-    content: '金额';
-  }
-
-  .transaction-item .col:nth-child(4):before {
-    content: '状态';
+    font-size: 14px;
   }
 }
 

@@ -65,6 +65,38 @@
           <h3>交易频率</h3>
           <p>{{ analysisResult.transactionFrequency }}</p>
         </div>
+        <div class="result-card">
+          <div class="card-icon">💎</div>
+          <h3>TRX余额</h3>
+          <p>{{ analysisResult.trxBalance }} TRX</p>
+          <div class="sub-info">
+            <span>钱包: {{ analysisResult.balancePercentage }}%</span>
+            <span>质押: {{ analysisResult.stakedPercentage }}%</span>
+          </div>
+        </div>
+        <div class="result-card">
+          <div class="card-icon">🔒</div>
+          <h3>TRX质押</h3>
+          <p>{{ analysisResult.trxStaked }} TRX</p>
+        </div>
+        <div class="result-card">
+          <div class="card-icon">⚡</div>
+          <h3>能量</h3>
+          <p>{{ analysisResult.energy.available === '--' ? '暂无数据' : `${analysisResult.energy.available} / ${analysisResult.energy.total}` }}</p>
+        </div>
+        <div class="result-card">
+          <div class="card-icon">🌐</div>
+          <h3>带宽</h3>
+          <p>{{ analysisResult.bandwidth.available === '--' ? '暂无数据' : `${analysisResult.bandwidth.available} / ${analysisResult.bandwidth.total}` }}</p>
+        </div>
+        <div class="result-card">
+          <div class="card-icon">🗳️</div>
+          <h3>投票</h3>
+          <p>{{ analysisResult.votes.voted === '--' ? '暂无数据' : `${analysisResult.votes.voted} / ${analysisResult.votes.total}` }}</p>
+          <div class="sub-info">
+            <span>未领取奖励: {{ analysisResult.votes.rewards === '--' ? '暂无数据' : `${analysisResult.votes.rewards} TRX` }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="chart-container">
@@ -120,6 +152,7 @@ let chart = null
 const transactions = ref([])
 const error = ref(null)
 const analysisResult = ref(null)
+const addressInfo = ref(null)
 
 const ETHERSCAN_API_KEY = 'YOUR_API_KEY'
 const TRONSCAN_API_KEY = 'f63c8a63-e0d6-4a04-a9b5-1d41b5e668cc'
@@ -146,7 +179,7 @@ const initChart = (transactions, type) => {
     if (type === 'ETH') {
       return parseFloat(tx.value)
     } else {
-      const amount = tx.value || 0
+      const amount = tx.quant || 0
       return parseFloat(amount)
     }
   })
@@ -251,6 +284,7 @@ const analyzeAddress = async () => {
   loading.value = true
   error.value = null
   analysisResult.value = null
+  addressInfo.value = null
 
   try {
     const addressType = detectAddressType(address.value)
@@ -262,25 +296,53 @@ const analyzeAddress = async () => {
     if (addressType === 'ETH') {
       response = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${address.value}&startblock=0&endblock=99999999&page=1&offset=100&sort=desc&apikey=${ETHERSCAN_API_KEY}`)
     } else {
-      response = await fetch(`https://apilist.tronscanapi.com/api/filter/trc20/transfers?limit=20&start=0&sort=-timestamp&count=true&filterTokenValue=0&relatedAddress=${address.value}`)
-    }
-
-    if (!response.ok) {
-      throw new Error('获取数据失败')
-    }
-
-    const data = await response.json()
-    
-    if (addressType === 'ETH') {
-      if (data.status !== '1') {
-        throw new Error(data.message || '获取数据失败')
+      // 获取交易数据
+      const txResponse = await fetch(`https://apilist.tronscanapi.com/api/filter/trc20/transfers?limit=20&start=0&sort=-timestamp&count=true&filterTokenValue=0&relatedAddress=${address.value}`)
+      
+      // 获取地址信息
+      const infoResponse = await fetch(`https://apilist.tronscanapi.com/api/account?address=${address.value}`)
+      
+      // 获取资源信息（使用try-catch单独处理）
+      let resourceData = null
+      try {
+        const resourceResponse = await fetch(`https://apilist.tronscanapi.com/api/account/resourcev2?address=${address.value}&resourceType=0`)
+        if (resourceResponse.ok) {
+          resourceData = await resourceResponse.json()
+          // 处理能量数据
+          if (resourceData.data && resourceData.data.length > 0) {
+            const energyData = resourceData.data.find(item => item.resource === 1) // 1 表示能量
+            if (energyData) {
+              addressInfo.value = addressInfo.value || {}
+              addressInfo.value.resources = addressInfo.value.resources || {}
+              addressInfo.value.resources.energy = {
+                available: energyData.resourceValue,
+                total: energyData.resourceValue
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.log('获取资源信息失败:', err)
       }
-      transactions.value = data.result
-    } else {
-      if (!data.token_transfers) {
-        throw new Error('获取数据失败')
+
+      // 处理交易数据
+      if (!txResponse.ok) {
+        throw new Error('获取交易数据失败')
       }
-      transactions.value = data.token_transfers
+      const txData = await txResponse.json()
+      if (!txData.token_transfers) {
+        throw new Error('获取交易数据失败')
+      }
+      transactions.value = txData.token_transfers
+
+      // 处理地址信息
+      if (infoResponse.ok) {
+        const infoData = await infoResponse.json()
+        addressInfo.value = infoData
+        if (resourceData) {
+          addressInfo.value.resources = resourceData
+        }
+      }
     }
 
     // 计算分析结果
@@ -289,12 +351,39 @@ const analyzeAddress = async () => {
     const firstTransactionTime = getFirstTransactionTimestamp(transactions.value)
     const transactionFrequency = analyzeProfile(transactions.value)
 
+    // 计算TRX余额和质押比例
+    const trxBalance = addressInfo.value ? addressInfo.value.balance / 1e6 : 0
+    const trxStaked = addressInfo.value ? (addressInfo.value.power?.totalFrozen || 0) / 1e6 : 0
+    const totalTrx = trxBalance + trxStaked
+    const stakedPercentage = totalTrx > 0 ? (trxStaked / totalTrx * 100).toFixed(2) : 0
+    const balancePercentage = totalTrx > 0 ? (trxBalance / totalTrx * 100).toFixed(2) : 0
+
     analysisResult.value = {
       totalTransactions,
       totalInValue: formatAmount(totalIn),
       totalOutValue: formatAmount(totalOut),
       firstTransactionTime: formatDate(firstTransactionTime),
-      transactionFrequency
+      transactionFrequency,
+      // TRX信息
+      trxBalance: formatAmount(trxBalance),
+      trxStaked: formatAmount(trxStaked),
+      stakedPercentage,
+      balancePercentage,
+      // 资源信息（添加默认值和占位符）
+      bandwidth: {
+        available: addressInfo.value?.resources?.bandwidth?.available ?? '--',
+        total: addressInfo.value?.resources?.bandwidth?.total ?? '--'
+      },
+      energy: {
+        available: addressInfo.value?.resources?.energy?.available ?? '--',
+        total: addressInfo.value?.resources?.energy?.total ?? '--'
+      },
+      // 投票信息（添加默认值和占位符）
+      votes: {
+        voted: addressInfo.value?.votes ?? '--',
+        total: 30,
+        rewards: addressInfo.value?.rewards ?? '--'
+      }
     }
 
     // 绘制图表
@@ -597,6 +686,30 @@ const drawTransactionChart = (transactions, type) => {
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
+/* 添加暂无数据的样式 */
+.result-card p:empty::before {
+  content: '暂无数据';
+  color: #94a3b8;
+  font-size: 16px;
+  font-weight: normal;
+}
+
+.sub-info {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.sub-info span:empty::before {
+  content: '暂无数据';
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: normal;
+}
+
 .chart-container {
   height: 400px;
   width: 100%;
@@ -699,8 +812,13 @@ const drawTransactionChart = (transactions, type) => {
 }
 
 @media (max-width: 768px) {
+  .address-analysis {
+    padding: 10px;
+  }
+
   .hero-section {
-    padding: 30px 15px;
+    padding: 20px 15px;
+    margin-bottom: 20px;
   }
   
   .hero-section h1 {
@@ -713,6 +831,7 @@ const drawTransactionChart = (transactions, type) => {
   
   .input-group {
     flex-direction: column;
+    gap: 8px;
   }
   
   .analyze-btn {
@@ -721,105 +840,59 @@ const drawTransactionChart = (transactions, type) => {
 
   .result-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
   }
 
   .result-card {
-    padding: 15px;
+    padding: 12px;
   }
 
   .result-card h3 {
     font-size: 14px;
+    margin-bottom: 8px;
   }
 
   .result-card p {
     font-size: 18px;
+    padding: 8px;
   }
 
-  .chart-container {
-    height: 300px;
-  }
-
-  .transaction-list {
-    padding: 16px;
-  }
-
-  .list-columns {
-    display: none;
-  }
-
-  .transaction-item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 16px;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    margin-bottom: 12px;
-    background: #fff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  }
-
-  .transaction-item .col {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f1f5f9;
-    width: 100%;
-    font-size: 14px;
-  }
-
-  .transaction-item .col:last-child {
-    border-bottom: none;
-  }
-
-  .transaction-item .col:before {
-    content: attr(data-label);
-    color: #64748b;
-    font-weight: 500;
-    font-size: 14px;
-  }
-
-  .tx-type, .tx-status {
-    min-width: 60px;
-    padding: 4px 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .hero-section h1 {
-    font-size: 1.5em;
-  }
-
-  .result-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .result-card {
-    padding: 12px;
-  }
-
-  .result-card h3 {
-    font-size: 13px;
-  }
-
-  .result-card p {
-    font-size: 16px;
+  .card-icon {
+    font-size: 24px;
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    margin-bottom: 8px;
   }
 
   .chart-container {
     height: 250px;
+    margin-bottom: 15px;
   }
 
   .transaction-list {
     padding: 12px;
+    margin-top: 15px;
+  }
+
+  .list-header {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+
+  .list-header h3 {
+    font-size: 16px;
   }
 
   .transaction-item {
     padding: 12px;
+    margin-bottom: 8px;
+    gap: 6px;
   }
 
   .transaction-item .col {
+    padding: 6px 0;
     font-size: 13px;
   }
 
@@ -831,6 +904,95 @@ const drawTransactionChart = (transactions, type) => {
     min-width: 50px;
     padding: 3px 10px;
     font-size: 12px;
+  }
+
+  .sub-info {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .address-analysis {
+    padding: 8px;
+  }
+
+  .hero-section {
+    padding: 15px 10px;
+  }
+
+  .hero-section h1 {
+    font-size: 1.5em;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .result-card {
+    padding: 10px;
+  }
+
+  .result-card h3 {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .result-card p {
+    font-size: 16px;
+    padding: 6px;
+  }
+
+  .card-icon {
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    margin-bottom: 6px;
+  }
+
+  .chart-container {
+    height: 200px;
+    margin-bottom: 12px;
+  }
+
+  .transaction-list {
+    padding: 10px;
+    margin-top: 12px;
+  }
+
+  .list-header {
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+  }
+
+  .list-header h3 {
+    font-size: 15px;
+  }
+
+  .transaction-item {
+    padding: 10px;
+    margin-bottom: 6px;
+    gap: 4px;
+  }
+
+  .transaction-item .col {
+    padding: 4px 0;
+    font-size: 12px;
+  }
+
+  .transaction-item .col:before {
+    font-size: 12px;
+  }
+
+  .tx-type, .tx-status {
+    min-width: 45px;
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+
+  .sub-info {
+    font-size: 10px;
   }
 }
 </style>

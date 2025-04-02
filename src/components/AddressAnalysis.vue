@@ -13,6 +13,7 @@
             type="text"
             placeholder="请输入以太坊或波场地址"
             class="address-input"
+            @keyup.enter="analyzeAddress"
           >
           <button 
             @click="analyzeAddress" 
@@ -28,73 +29,61 @@
       </div>
     </div>
 
-    <div v-if="addressData" class="analysis-results">
-      <div class="cards-grid">
-        <div class="card info-card">
-          <div class="card-header">
-            <h3>基本信息</h3>
-            <span class="icon">📊</span>
-          </div>
-          <div class="info-container">
-            <div class="info-item">
-              <div class="info-icon">📝</div>
-              <div class="info-content">
-                <span class="label">总交易次数</span>
-                <span class="value">{{ addressData.totalTransactions }}</span>
-              </div>
-            </div>
-            <div class="info-item">
-              <div class="info-icon">💰</div>
-              <div class="info-content">
-                <span class="label">总交易金额</span>
-                <span class="value highlight">{{ formatAmount(addressData.totalValue) }} {{ addressType === 'ETH' ? 'ETH' : 'TRX' }}</span>
-              </div>
-            </div>
-            <div class="info-item">
-              <div class="info-icon">⏰</div>
-              <div class="info-content">
-                <span class="label">首次交易时间</span>
-                <span class="value">{{ formatDate(addressData.firstTransaction) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div v-if="loading" class="loading">
+      <div class="spinner"></div>
+      <p>正在分析中...</p>
+    </div>
 
-        <div class="card chart-card">
-          <div class="card-header">
-            <h3>交易趋势</h3>
-            <div class="chart-controls">
-              <button 
-                :class="['chart-btn', chartType === 'line' ? 'active' : '']"
-                @click="chartType = 'line'"
-              >
-                折线图
-              </button>
-              <button 
-                :class="['chart-btn', chartType === 'bar' ? 'active' : '']"
-                @click="chartType = 'bar'"
-              >
-                柱状图
-              </button>
-            </div>
-          </div>
-          <div ref="chartRef" class="chart-container"></div>
+    <div v-if="error" class="error">
+      {{ error }}
+    </div>
+
+    <div v-if="analysisResult" class="analysis-result">
+      <div class="result-grid">
+        <div class="result-card">
+          <h3>交易总数</h3>
+          <p>{{ analysisResult.totalTransactions }}</p>
+        </div>
+        <div class="result-card">
+          <h3>总交易金额</h3>
+          <p>{{ analysisResult.totalValue }} USDT</p>
+        </div>
+        <div class="result-card">
+          <h3>首次交易时间</h3>
+          <p>{{ analysisResult.firstTransactionTime }}</p>
+        </div>
+        <div class="result-card">
+          <h3>交易频率</h3>
+          <p>{{ analysisResult.transactionFrequency }}</p>
         </div>
       </div>
 
-      <div class="card profile-card">
-        <div class="card-header">
-          <h3>用户画像</h3>
-          <span class="icon">👤</span>
+      <div class="chart-container">
+        <canvas ref="transactionChart"></canvas>
+      </div>
+
+      <div class="transaction-list">
+        <h3>交易记录</h3>
+        <div class="list-header">
+          <div class="col">时间</div>
+          <div class="col">类型</div>
+          <div class="col">金额</div>
+          <div class="col">状态</div>
         </div>
-        <div class="profile-container">
-          <div class="profile-header">
-            <span :class="['profile-tag', getProfileType(addressData.profile.type)]">
-              {{ addressData.profile.type }}
-            </span>
-          </div>
-          <div class="profile-content">
-            <p>{{ addressData.profile.description }}</p>
+        <div class="list-content">
+          <div v-for="tx in transactions" :key="tx.transaction_id" class="transaction-item">
+            <div class="col">{{ formatDate(tx.block_ts) }}</div>
+            <div class="col">
+              <span :class="tx.from_address === address ? 'out' : 'in'">
+                {{ tx.from_address === address ? '转出' : '转入' }}
+              </span>
+            </div>
+            <div class="col">{{ formatAmount(tx.quant) }} USDT</div>
+            <div class="col">
+              <span :class="tx.contractRet === 'SUCCESS' ? 'success' : 'failed'">
+                {{ tx.contractRet }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -103,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
 
@@ -114,6 +103,9 @@ const addressType = ref('')
 const chartRef = ref(null)
 const chartType = ref('line')
 let chart = null
+const transactions = ref([])
+const error = ref(null)
+const analysisResult = ref(null)
 
 const ETHERSCAN_API_KEY = 'YOUR_API_KEY'
 const TRONSCAN_API_KEY = 'f63c8a63-e0d6-4a04-a9b5-1d41b5e668cc'
@@ -238,66 +230,64 @@ const detectAddressType = (address) => {
 
 const analyzeAddress = async () => {
   if (!address.value) {
-    alert('请输入地址')
+    error.value = '请输入地址'
     return
   }
 
-  const type = detectAddressType(address.value)
-  if (!type) {
-    alert('无效的地址格式')
-    return
-  }
-
-  addressType.value = type
   loading.value = true
+  error.value = null
+  analysisResult.value = null
 
   try {
-    let response
-    if (type === 'ETH') {
-      response = await axios.get(`https://api.etherscan.io/api`, {
-        params: {
-          module: 'account',
-          action: 'txlist',
-          address: address.value,
-          startblock: 0,
-          endblock: 99999999,
-          sort: 'asc',
-          apikey: ETHERSCAN_API_KEY
-        }
-      })
-    } else {
-      response = await axios.get(`https://apilist.tronscanapi.com/api/token_trc20/transfers-with-status`, {
-        params: {
-          address: address.value,
-          limit: 50,
-          start: 0,
-          sort: '-timestamp',
-          count: true,
-          trc20Id: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t' // USDT 合约地址
-        },
-        headers: {
-          'TRON-PRO-API-KEY': TRONSCAN_API_KEY
-        }
-      })
+    const addressType = detectAddressType(address.value)
+    if (!addressType) {
+      throw new Error('无效的地址格式')
     }
 
-    if (type === 'ETH' ? response.data.status === '1' : response.data.data) {
-      const transactions = type === 'ETH' ? response.data.result : response.data.data
-      addressData.value = {
-        totalTransactions: transactions.length,
-        totalValue: calculateTotalValue(transactions, type),
-        firstTransaction: getFirstTransactionTimestamp(transactions, type),
-        transactions: transactions,
-        profile: analyzeProfile(transactions, type)
-      }
-      
-      initChart(transactions, type)
+    let response
+    if (addressType === 'ETH') {
+      response = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${address.value}&startblock=0&endblock=99999999&page=1&offset=100&sort=desc&apikey=${ETHERSCAN_API_KEY}`)
     } else {
-      alert('获取数据失败')
+      response = await fetch(`https://apilist.tronscanapi.com/api/filter/trc20/transfers?limit=20&start=0&sort=-timestamp&count=true&filterTokenValue=0&relatedAddress=${address.value}`)
     }
-  } catch (error) {
-    console.error(error)
-    alert('请求出错')
+
+    if (!response.ok) {
+      throw new Error('获取数据失败')
+    }
+
+    const data = await response.json()
+    
+    if (addressType === 'ETH') {
+      if (data.status !== '1') {
+        throw new Error(data.message || '获取数据失败')
+      }
+      transactions.value = data.result
+    } else {
+      if (!data.token_transfers) {
+        throw new Error('获取数据失败')
+      }
+      transactions.value = data.token_transfers
+    }
+
+    // 计算分析结果
+    const totalTransactions = transactions.value.length
+    const totalValue = calculateTotalValue(transactions.value, addressType)
+    const firstTransactionTime = getFirstTransactionTimestamp(transactions.value)
+    const transactionFrequency = analyzeProfile(transactions.value)
+
+    analysisResult.value = {
+      totalTransactions,
+      totalValue: formatAmount(totalValue),
+      firstTransactionTime: formatDate(firstTransactionTime),
+      transactionFrequency
+    }
+
+    // 绘制图表
+    nextTick(() => {
+      drawTransactionChart(transactions.value, addressType)
+    })
+  } catch (err) {
+    error.value = err.message
   } finally {
     loading.value = false
   }
@@ -352,6 +342,10 @@ const formatAmount = (value) => {
 
 const formatDate = (timestamp) => {
   return new Date(timestamp * 1000).toLocaleString()
+}
+
+const drawTransactionChart = (transactions, type) => {
+  // Implementation of drawTransactionChart function
 }
 </script>
 
@@ -462,167 +456,141 @@ const formatDate = (timestamp) => {
   color: white;
 }
 
-.cards-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 20px;
-  margin-bottom: 20px;
+.loading {
+  text-align: center;
+  padding: 40px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
 }
 
-.card {
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #3b82f6;
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  text-align: center;
+  padding: 40px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+.analysis-result {
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   padding: 24px;
-  transition: all 0.3s ease;
+  margin-top: 20px;
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e2e8f0;
+.result-card {
+  text-align: center;
 }
 
-.card-header h3 {
+.result-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.result-card p {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #1e293b;
 }
 
-.icon {
-  font-size: 24px;
-}
-
-.info-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.info-item:hover {
-  background: #f1f5f9;
-}
-
-.info-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: #3b82f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: white;
-}
-
-.info-content {
-  flex: 1;
-}
-
-.label {
-  display: block;
-  font-size: 14px;
-  color: #64748b;
-  margin-bottom: 4px;
-}
-
-.value {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.value.highlight {
-  color: #3b82f6;
-  font-size: 24px;
-}
-
 .chart-container {
   height: 400px;
   width: 100%;
-}
-
-.chart-controls {
-  display: flex;
-  gap: 8px;
-}
-
-.chart-btn {
-  padding: 6px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: white;
-  color: #64748b;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.chart-btn.active {
-  background: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
-}
-
-.profile-container {
-  padding: 24px;
-  background: #f8fafc;
-  border-radius: 12px;
-}
-
-.profile-header {
-  text-align: center;
   margin-bottom: 20px;
 }
 
-.profile-tag {
-  display: inline-block;
-  padding: 8px 24px;
-  border-radius: 20px;
-  font-size: 16px;
+.transaction-list {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.transaction-list h3 {
+  margin: 0 0 20px;
+  color: #333;
+  font-size: 1.2em;
+}
+
+.list-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 20px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #666;
+}
+
+.transaction-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 20px;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s;
+}
+
+.transaction-item:hover {
+  background-color: #f8f9fa;
+}
+
+.col {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.in {
+  color: #4caf50;
   font-weight: 500;
-  color: white;
 }
 
-.profile-tag.whale {
-  background: #ef4444;
+.out {
+  color: #f44336;
+  font-weight: 500;
 }
 
-.profile-tag.active {
-  background: #f59e0b;
+.success {
+  color: #4caf50;
+  font-weight: 500;
 }
 
-.profile-tag.inactive {
-  background: #64748b;
-}
-
-.profile-tag.normal {
-  background: #3b82f6;
-}
-
-.profile-content {
-  text-align: center;
-  color: #64748b;
-  line-height: 1.6;
+.failed {
+  color: #f44336;
+  font-weight: 500;
 }
 
 @media (max-width: 768px) {
@@ -636,10 +604,6 @@ const formatDate = (timestamp) => {
   
   .hero-section p {
     font-size: 1em;
-  }
-  
-  .cards-grid {
-    grid-template-columns: 1fr;
   }
   
   .input-group {

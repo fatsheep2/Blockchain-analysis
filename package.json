@@ -1,0 +1,18 @@
+{
+  "name": "blockchain-analysis",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "vue": "^3.0.4",
+    "axios": "^1.6.2",
+    "element-plus": "^2.4.2",
+    "echarts": "^5.4.3"
+  },
+  "devDependencies": {
+    "vite": "^1.0.0-rc.13",
+    "@vue/compiler-sfc": "^3.0.4"
+  }
+}

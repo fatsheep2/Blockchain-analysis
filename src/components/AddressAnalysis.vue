@@ -41,18 +41,22 @@
     <div v-if="analysisResult" class="analysis-result">
       <div class="result-grid">
         <div class="result-card">
+          <div class="card-icon">📊</div>
           <h3>交易总数</h3>
           <p>{{ analysisResult.totalTransactions }}</p>
         </div>
         <div class="result-card">
+          <div class="card-icon">💰</div>
           <h3>总交易金额</h3>
           <p>{{ analysisResult.totalValue }} USDT</p>
         </div>
         <div class="result-card">
+          <div class="card-icon">⏰</div>
           <h3>首次交易时间</h3>
           <p>{{ analysisResult.firstTransactionTime }}</p>
         </div>
         <div class="result-card">
+          <div class="card-icon">📈</div>
           <h3>交易频率</h3>
           <p>{{ analysisResult.transactionFrequency }}</p>
         </div>
@@ -63,24 +67,29 @@
       </div>
 
       <div class="transaction-list">
-        <h3>交易记录</h3>
         <div class="list-header">
-          <div class="col">时间</div>
-          <div class="col">类型</div>
-          <div class="col">金额</div>
-          <div class="col">状态</div>
+          <h3>交易记录</h3>
+          <div class="list-stats">
+            <span>共 {{ transactions.length }} 笔交易</span>
+          </div>
         </div>
         <div class="list-content">
+          <div class="list-columns">
+            <div class="col">时间</div>
+            <div class="col">类型</div>
+            <div class="col">金额</div>
+            <div class="col">状态</div>
+          </div>
           <div v-for="tx in transactions" :key="tx.transaction_id" class="transaction-item">
             <div class="col">{{ formatDate(tx.block_ts) }}</div>
             <div class="col">
-              <span :class="tx.from_address === address ? 'out' : 'in'">
+              <span :class="['tx-type', tx.from_address === address ? 'out' : 'in']">
                 {{ tx.from_address === address ? '转出' : '转入' }}
               </span>
             </div>
             <div class="col">{{ formatAmount(tx.quant) }} USDT</div>
             <div class="col">
-              <span :class="tx.contractRet === 'SUCCESS' ? 'success' : 'failed'">
+              <span :class="['tx-status', tx.contractRet === 'SUCCESS' ? 'success' : 'failed']">
                 {{ tx.contractRet }}
               </span>
             </div>
@@ -298,34 +307,35 @@ const calculateTotalValue = (transactions, type) => {
     return transactions.reduce((sum, tx) => sum + parseFloat(tx.value), 0)
   } else {
     return transactions.reduce((sum, tx) => {
-      const amount = tx.amount || 0
+      const amount = tx.quant || 0
       return sum + parseFloat(amount) / 1e6 // USDT 有 6 位小数
     }, 0)
   }
 }
 
-const getFirstTransactionTimestamp = (transactions, type) => {
-  if (type === 'ETH') {
-    return transactions[0]?.timeStamp
-  } else {
-    return transactions[0]?.block_timestamp / 1000
-  }
+const getFirstTransactionTimestamp = (transactions) => {
+  if (!transactions || transactions.length === 0) return null
+  return transactions[transactions.length - 1]?.block_ts / 1000
 }
 
-const analyzeProfile = (transactions, chainType) => {
-  const totalValue = calculateTotalValue(transactions, chainType)
-  const firstTx = getFirstTransactionTimestamp(transactions, chainType)
-  const frequency = transactions.length / (Date.now() / 1000 - firstTx)
-  
+const analyzeProfile = (transactions) => {
+  if (!transactions || transactions.length === 0) {
+    return { type: '无交易', description: '该地址暂无交易记录' }
+  }
+
+  const totalValue = calculateTotalValue(transactions, 'TRON')
+  const firstTx = getFirstTransactionTimestamp(transactions)
+  const now = Date.now() / 1000
+  const days = (now - firstTx) / (24 * 60 * 60)
+  const frequency = transactions.length / days
+
   let profileType = '普通用户'
   let description = ''
 
-  const threshold = chainType === 'ETH' ? 1000 : 100000 // TRON 使用不同的阈值
-
-  if (totalValue > threshold) {
+  if (totalValue > 100000) {
     profileType = '大户'
     description = '该地址交易频繁，交易金额较大，可能是机构投资者或专业交易者。'
-  } else if (frequency > 0.1) {
+  } else if (frequency > 1) {
     profileType = '活跃用户'
     description = '该地址交易较为频繁，但单笔交易金额较小，可能是普通用户。'
   } else {
@@ -333,15 +343,24 @@ const analyzeProfile = (transactions, chainType) => {
     description = '该地址交易频率较低，可能是普通散户投资者。'
   }
 
-  return { type: profileType, description }
+  return `${profileType} (${frequency.toFixed(2)}笔/天)`
 }
 
 const formatAmount = (value) => {
-  return (value / (addressType.value === 'ETH' ? 1e18 : 1e6)).toFixed(4)
+  if (!value) return '0.0000'
+  return (parseFloat(value) / 1e6).toFixed(4)
 }
 
 const formatDate = (timestamp) => {
-  return new Date(timestamp * 1000).toLocaleString()
+  if (!timestamp) return '暂无数据'
+  return new Date(timestamp * 1000).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 }
 
 const drawTransactionChart = (transactions, type) => {
@@ -507,19 +526,33 @@ const drawTransactionChart = (transactions, type) => {
 
 .result-card {
   text-align: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.result-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.card-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
 }
 
 .result-card h3 {
   margin: 0 0 10px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: #64748b;
 }
 
 .result-card p {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
   color: #1e293b;
 }
 
@@ -531,66 +564,83 @@ const drawTransactionChart = (transactions, type) => {
 
 .transaction-list {
   background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  margin-top: 20px;
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 30px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
-.transaction-list h3 {
-  margin: 0 0 20px;
-  color: #333;
-  font-size: 1.2em;
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.list-header {
+.list-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #1e293b;
+}
+
+.list-stats {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.list-columns {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 20px;
   padding: 12px;
-  background: #f8f9fa;
+  background: #f8fafc;
   border-radius: 8px;
   font-weight: 600;
-  color: #666;
+  color: #64748b;
+  margin-bottom: 8px;
 }
 
 .transaction-item {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 20px;
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  transition: background-color 0.2s;
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
 }
 
 .transaction-item:hover {
-  background-color: #f8f9fa;
+  background-color: #f8fafc;
 }
 
-.col {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.tx-type, .tx-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.in {
+.tx-type.in {
+  background: rgba(76, 175, 80, 0.1);
   color: #4caf50;
-  font-weight: 500;
 }
 
-.out {
+.tx-type.out {
+  background: rgba(244, 67, 54, 0.1);
   color: #f44336;
-  font-weight: 500;
 }
 
-.success {
+.tx-status.success {
+  background: rgba(76, 175, 80, 0.1);
   color: #4caf50;
-  font-weight: 500;
 }
 
-.failed {
+.tx-status.failed {
+  background: rgba(244, 67, 54, 0.1);
   color: #f44336;
-  font-weight: 500;
 }
 
 @media (max-width: 768px) {

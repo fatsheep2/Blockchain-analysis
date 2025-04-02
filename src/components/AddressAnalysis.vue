@@ -739,7 +739,18 @@ const drawTransactionChart = (transactions, type) => {
     height: 300px;
   }
 
+  .transaction-list {
+    padding: 16px;
+  }
+
+  .list-columns {
+    display: none;
+  }
+
   .transaction-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding: 16px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
@@ -748,17 +759,14 @@ const drawTransactionChart = (transactions, type) => {
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   }
 
-  .transaction-item:hover {
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  }
-
   .transaction-item .col {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
     border-bottom: 1px solid #f1f5f9;
+    width: 100%;
+    font-size: 14px;
   }
 
   .transaction-item .col:last-child {
@@ -770,6 +778,11 @@ const drawTransactionChart = (transactions, type) => {
     color: #64748b;
     font-weight: 500;
     font-size: 14px;
+  }
+
+  .tx-type, .tx-status {
+    min-width: 60px;
+    padding: 4px 12px;
   }
 }
 
@@ -796,6 +809,28 @@ const drawTransactionChart = (transactions, type) => {
 
   .chart-container {
     height: 250px;
+  }
+
+  .transaction-list {
+    padding: 12px;
+  }
+
+  .transaction-item {
+    padding: 12px;
+  }
+
+  .transaction-item .col {
+    font-size: 13px;
+  }
+
+  .transaction-item .col:before {
+    font-size: 13px;
+  }
+
+  .tx-type, .tx-status {
+    min-width: 50px;
+    padding: 3px 10px;
+    font-size: 12px;
   }
 }
 </style>

@@ -856,7 +856,7 @@ const showScreenshotOptions = () => {
 const captureScreenshot = async (type) => {
   try {
     // 获取整个页面内容
-    const element = document.querySelector('.address-analysis')
+    const element = document.documentElement
     if (!element) return
 
     // 显示加载提示
@@ -875,10 +875,16 @@ const captureScreenshot = async (type) => {
       foreignObjectRendering: true,
       height: element.scrollHeight,
       windowHeight: element.scrollHeight,
+      scrollY: -window.scrollY,
       onclone: (clonedDoc) => {
         // 确保克隆的文档中包含所有样式
         const style = clonedDoc.createElement('style')
         style.textContent = `
+          html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+          }
           .address-analysis {
             background-color: #f8fafc;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -894,6 +900,32 @@ const captureScreenshot = async (type) => {
             color: white;
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
           }
+          .hero-section h1 {
+            font-size: 2.5em;
+            margin: 0;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+          }
+          .hero-section p {
+            font-size: 1.2em;
+            margin: 10px 0 0;
+            opacity: 0.9;
+          }
+          .search-section {
+            margin-bottom: 30px;
+          }
+          .search-container {
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          .input-group {
+            display: flex;
+            gap: 10px;
+            background: white;
+            padding: 4px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+          }
           .result-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -907,6 +939,33 @@ const captureScreenshot = async (type) => {
             border-radius: 16px;
             border: 1px solid #e2e8f0;
             box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+          }
+          .card-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+            background: #fff;
+            width: 64px;
+            height: 64px;
+            line-height: 64px;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          }
+          .result-card h3 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #64748b;
+          }
+          .result-card p {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
           }
           .chart-container {
             background: white;

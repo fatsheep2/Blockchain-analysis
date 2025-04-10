@@ -106,9 +106,33 @@
         <div class="result-card">
           <div class="card-icon">🗳️</div>
           <h3>投票</h3>
-          <p>{{ analysisResult.votes.voted === '--' ? '暂无数据' : `${analysisResult.votes.voted} / ${analysisResult.votes.total}` }}</p>
+          <p>{{ analysisResult.votes.voted === '- -' ? '- -' : `${analysisResult.votes.voted} / ${analysisResult.votes.total}` }}</p>
           <div class="sub-info">
-            <span>未领取奖励: {{ analysisResult.votes.rewards === '--' ? '暂无数据' : `${analysisResult.votes.rewards} TRX` }}</span>
+            <span>未领取奖励: {{ analysisResult.votes.rewards === '- -' ? '- -' : `${analysisResult.votes.rewards} TRX` }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="wallet-balance">
+        <div class="section-header">
+          <h3>钱包余额</h3>
+          <div class="total-value">
+            总价值: {{ formatAmount(totalWalletValue) }} USDT
+          </div>
+        </div>
+        <div class="token-list">
+          <div class="token-item" v-for="token in tokenBalances" :key="token.symbol">
+            <div class="token-info">
+              <div class="token-icon">{{ getTokenIcon(token.symbol) }}</div>
+              <div class="token-details">
+                <div class="token-name">{{ token.name }}</div>
+                <div class="token-symbol">{{ token.symbol }}</div>
+              </div>
+            </div>
+            <div class="token-balance">
+              <div class="amount">{{ formatAmount(token.balance) }}</div>
+              <div class="usdt-value" v-if="token.usdtValue">≈ {{ formatAmount(token.usdtValue) }} USDT</div>
+            </div>
           </div>
         </div>
       </div>
@@ -145,9 +169,18 @@
               </span>
             </div>
             <div class="col" data-label="地址">
-              <span class="address-text">
-                {{ tx.from_address === address ? formatAddress(tx.to_address) : formatAddress(tx.from_address) }}
-              </span>
+              <div class="address-container">
+                <span class="address-text">
+                  {{ tx.from_address === address ? formatAddress(tx.to_address) : formatAddress(tx.from_address) }}
+                </span>
+                <button 
+                  class="copy-btn"
+                  @click="copyToClipboard(tx.from_address === address ? tx.to_address : tx.from_address)"
+                  title="复制地址"
+                >
+                  <i class="icon-copy"></i>
+                </button>
+              </div>
             </div>
             <div class="col" data-label="金额">{{ formatAmount(tx.quant / 1e6) }} USDT</div>
             <div class="col" data-label="状态">
@@ -187,18 +220,40 @@ echarts.use([
   CanvasRenderer
 ])
 
-const address = ref('TFGqVkQCdHxMEZd7Ys6MbvTh8MwPuB7Lkh')
+const address = ref('TYH9hdjkhctttSmzDkNhuPwgtBWYzNfQ1Y')
 const loading = ref(false)
 const addressData = ref(null)
-const addressType = ref('')
+const addressType = ref('TRX')
 const transactionChart = ref(null)
 const addressStatsChart = ref(null)
 const chartType = ref('line')
 const transactions = ref([])
 const error = ref(null)
-const analysisResult = ref(null)
+const analysisResult = ref({
+  balance: '- -',
+  transactions: '- -',
+  totalAssets: '- -',
+  walletPercentage: '- -',
+  portfolioPercentage: '- -',
+  trxStaked: '- -',
+  bandwidth: {
+    total: '- -',
+    available: '- -'
+  },
+  energy: {
+    total: '- -',
+    available: '- -'
+  },
+  votes: {
+    voted: '- -',
+    total: '- -',
+    rewards: '- -'
+  }
+})
 const addressInfo = ref(null)
 const showOptions = ref(false)
+const tokenBalances = ref([])
+const totalWalletValue = ref(0)
 
 // 图表实例
 let chartInstance = null
@@ -320,7 +375,7 @@ const detectAddressType = (address) => {
   if (ethRegex.test(address)) {
     return 'ETH'
   } else if (tronRegex.test(address)) {
-    return 'TRON'
+    return 'TRX'
   }
   return null
 }
@@ -335,41 +390,72 @@ const analyzeAddress = async () => {
   error.value = null
   analysisResult.value = null
   addressInfo.value = null
+  tokenBalances.value = [] // 清空之前的代币数据
 
   try {
-    const addressType = detectAddressType(address.value)
-    if (!addressType) {
+    const detectedType = detectAddressType(address.value)
+    if (!detectedType) {
       throw new Error('无效的地址格式')
     }
 
-    let response
-    if (addressType === 'ETH') {
-      response = await fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${address.value}&startblock=0&endblock=99999999&page=1&offset=100&sort=desc&apikey=${ETHERSCAN_API_KEY}`)
-    } else {
+    addressType.value = detectedType  // 更新地址类型
+
+    if (detectedType === 'TRX') {
+      // 获取代币余额
+      const tokenResponse = await fetch(`https://apilist.tronscanapi.com/api/account/tokens?address=${address.value}&start=0&limit=20`)
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json()
+        if (tokenData.data) {
+          // 处理代币数据
+          const tokens = tokenData.data.map(token => ({
+            symbol: token.tokenAbbr.toUpperCase(),
+            name: token.tokenName,
+            balance: token.balance / Math.pow(10, token.tokenDecimal),
+            usdtValue: token.amountInUsd || 0,
+            price: token.tokenPriceInUsd || 0,
+            logo: token.tokenLogo,
+            type: token.tokenType,
+            holders: token.nrOfTokenHolders,
+            transfers: token.transferCount,
+            isContract: tokenData.contractMap[token.tokenId] || false,
+            contractInfo: tokenData.contractInfo[token.tokenId] || null
+          }))
+          
+          // 添加 TRX 代币
+          const trxToken = tokens.find(t => t.symbol === 'TRX')
+          if (!trxToken) {
+            tokens.unshift({
+              symbol: 'TRX',
+              name: 'TRON',
+              balance: addressInfo.value?.balance / 1e6 || 0,
+              usdtValue: (addressInfo.value?.balance / 1e6) * (tokenData.data.find(t => t.tokenAbbr === 'trx')?.tokenPriceInUsd || 0),
+              price: tokenData.data.find(t => t.tokenAbbr === 'trx')?.tokenPriceInUsd || 0,
+              logo: 'https://static.tronscan.org/production/logo/trx.png',
+              type: 'trc10',
+              holders: 0,
+              transfers: 0,
+              isContract: false,
+              contractInfo: null
+            })
+          }
+          
+          tokenBalances.value = tokens
+          totalWalletValue.value = tokens.reduce((sum, token) => sum + (token.usdtValue || 0), 0)
+        }
+      }
+
       // 获取交易数据
       const txResponse = await fetch(`https://apilist.tronscanapi.com/api/filter/trc20/transfers?limit=20&start=0&sort=-timestamp&count=true&filterTokenValue=0&relatedAddress=${address.value}`)
       
       // 获取地址信息
       const infoResponse = await fetch(`https://apilist.tronscanapi.com/api/account?address=${address.value}`)
       
-      // 获取资源信息（使用try-catch单独处理）
+      // 获取资源信息
       let resourceData = null
       try {
         const resourceResponse = await fetch(`https://apilist.tronscanapi.com/api/account/resourcev2?address=${address.value}&resourceType=0`)
         if (resourceResponse.ok) {
           resourceData = await resourceResponse.json()
-          // 处理能量数据
-          if (resourceData.data && resourceData.data.length > 0) {
-            const energyData = resourceData.data.find(item => item.resource === 1) // 1 表示能量
-            if (energyData) {
-              addressInfo.value = addressInfo.value || {}
-              addressInfo.value.resources = addressInfo.value.resources || {}
-              addressInfo.value.resources.energy = {
-                available: energyData.resourceValue,
-                total: energyData.resourceValue
-              }
-            }
-          }
         }
       } catch (err) {
         console.log('获取资源信息失败:', err)
@@ -414,12 +500,10 @@ const analyzeAddress = async () => {
       totalOutValue: formatAmount(totalOut),
       firstTransactionTime: formatDate(firstTransactionTime),
       transactionFrequency,
-      // TRX信息
       trxBalance: formatAmount(trxBalance),
       trxStaked: formatAmount(trxStaked),
       stakedPercentage,
       balancePercentage,
-      // 资源信息（添加默认值和占位符）
       bandwidth: {
         available: addressInfo.value?.resources?.bandwidth?.available ?? '--',
         total: addressInfo.value?.resources?.bandwidth?.total ?? '--'
@@ -428,7 +512,6 @@ const analyzeAddress = async () => {
         available: addressInfo.value?.resources?.energy?.available ?? '--',
         total: addressInfo.value?.resources?.energy?.total ?? '--'
       },
-      // 投票信息（添加默认值和占位符）
       votes: {
         voted: addressInfo.value?.votes ?? '--',
         total: 30,
@@ -440,7 +523,7 @@ const analyzeAddress = async () => {
     nextTick(() => {
       if (transactions.value && transactions.value.length > 0) {
         setTimeout(() => {
-          drawTransactionChart(transactions.value, addressType)
+          drawTransactionChart(transactions.value, detectedType)
           drawAddressStatsChart(addressStats)
         }, 300)
       }
@@ -1057,6 +1140,36 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    // 显示复制成功提示
+    const toast = document.createElement('div')
+    toast.className = 'copy-toast'
+    toast.textContent = '地址已复制'
+    document.body.appendChild(toast)
+    setTimeout(() => {
+      document.body.removeChild(toast)
+    }, 2000)
+  } catch (err) {
+    console.error('复制失败:', err)
+  }
+}
+
+const getTokenIcon = (symbol) => {
+  const icons = {
+    'TRX': '🌐',
+    'USDT': '💵',
+    'BTC': '₿',
+    'ETH': 'Ξ',
+    'BTT': '🎮',
+    'JST': '🎯',
+    'SUN': '☀️',
+    'WIN': '🎰'
+  }
+  return icons[symbol] || '💎'
+}
 </script>
 
 <style scoped>
@@ -1404,26 +1517,6 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   margin: 0 auto 16px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  transition: all 0.3s ease;
-  animation: iconPulse 2s infinite;
-}
-
-@keyframes iconPulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.result-card:hover .card-icon {
-  transform: rotate(360deg);
-  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
-  color: white;
 }
 
 .result-card h3 {
@@ -1466,6 +1559,109 @@ onBeforeUnmount(() => {
   color: #94a3b8;
   font-size: 12px;
   font-weight: normal;
+}
+
+.wallet-balance {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.total-value {
+  font-size: 16px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 8px 16px;
+  border-radius: 20px;
+}
+
+.token-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.token-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.token-item:hover {
+  background: #f1f5f9;
+  transform: translateX(4px);
+}
+
+.token-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.token-icon {
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.token-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.token-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.token-symbol {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.token-balance {
+  text-align: right;
+}
+
+.token-balance .amount {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.token-balance .usdt-value {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 4px;
 }
 
 .charts-container {
@@ -1619,6 +1815,70 @@ onBeforeUnmount(() => {
   word-break: break-all;
 }
 
+.address-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy-btn:hover {
+  background: #f1f5f9;
+  color: #3b82f6;
+}
+
+.icon-copy {
+  width: 16px;
+  height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.copy-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 1000;
+  animation: toastFade 2s ease-out forwards;
+}
+
+@keyframes toastFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  90% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+}
+
 @media (max-width: 768px) {
   .address-analysis {
     padding: 10px;
@@ -1742,6 +2002,15 @@ onBeforeUnmount(() => {
     top: 50px;
     right: 10px;
   }
+
+  .copy-btn {
+    padding: 3px;
+  }
+  
+  .icon-copy {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1851,6 +2120,15 @@ onBeforeUnmount(() => {
   .screenshot-options {
     top: 45px;
     right: 5px;
+  }
+
+  .copy-btn {
+    padding: 2px;
+  }
+  
+  .icon-copy {
+    width: 12px;
+    height: 12px;
   }
 }
 </style>

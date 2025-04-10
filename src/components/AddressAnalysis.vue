@@ -1,7 +1,7 @@
 <template>
   <div class="address-analysis">
     <div class="hero-section">
-      <h1>区块链地址分析</h1>
+      <h1>波场区块链地址分析</h1>
       <p>输入地址即可查看详细分析报告</p>
     </div>
 
@@ -165,8 +165,27 @@
 <script setup>
 import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import axios from 'axios'
-import * as echarts from 'echarts'
+import * as echarts from 'echarts/core'
+import { LineChart, BarChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  LegendComponent
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import html2canvas from 'html2canvas'
+
+// 注册必要的组件
+echarts.use([
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  LineChart,
+  BarChart,
+  CanvasRenderer
+])
 
 const address = ref('TFGqVkQCdHxMEZd7Ys6MbvTh8MwPuB7Lkh')
 const loading = ref(false)
@@ -1046,6 +1065,18 @@ onBeforeUnmount(() => {
   background-color: #f8fafc;
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero-section {
@@ -1056,6 +1087,40 @@ onBeforeUnmount(() => {
   border-radius: 16px;
   color: white;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  position: relative;
+  overflow: hidden;
+  animation: slideUp 0.8s ease-out;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero-section h1 {
@@ -1153,6 +1218,19 @@ onBeforeUnmount(() => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  animation: loadingPulse 1.5s infinite;
+}
+
+@keyframes loadingPulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 .spinner {
@@ -1203,13 +1281,26 @@ onBeforeUnmount(() => {
   gap: 8px;
   font-size: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
+  animation: buttonFloat 2s infinite;
+}
+
+@keyframes buttonFloat {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .screenshot-btn:hover {
   background: #2563eb;
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -1283,12 +1374,22 @@ onBeforeUnmount(() => {
   padding: 24px;
   background: #f8fafc;
   border-radius: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid #e2e8f0;
+  animation: cardAppear 0.5s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes cardAppear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .result-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-5px) scale(1.02);
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   border-color: #3b82f6;
 }
@@ -1303,6 +1404,26 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   margin: 0 auto 16px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+  animation: iconPulse 2s infinite;
+}
+
+@keyframes iconPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.result-card:hover .card-icon {
+  transform: rotate(360deg);
+  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  color: white;
 }
 
 .result-card h3 {
@@ -1362,11 +1483,21 @@ onBeforeUnmount(() => {
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   position: relative;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: chartSlide 0.6s ease-out forwards;
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+@keyframes chartSlide {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .chart-container:hover {
-  transform: translateY(-5px);
+  transform: translateY(-5px) scale(1.01);
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 
@@ -1427,13 +1558,23 @@ onBeforeUnmount(() => {
   gap: 20px;
   padding: 16px;
   border-bottom: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 8px;
+  animation: itemFade 0.4s ease-out forwards;
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+@keyframes itemFade {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .transaction-item:hover {
   background-color: #f8fafc;
-  transform: translateX(4px);
+  transform: translateX(4px) scale(1.01);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 

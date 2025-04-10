@@ -100,10 +100,14 @@
       </div>
 
       <div class="chart-container">
-        <canvas ref="transactionChart"></canvas>
+        <div ref="transactionChart" class="chart"></div>
       </div>
 
-      <div class="transaction-list">
+      <div class="chart-container">
+        <div ref="addressStatsChart" class="chart"></div>
+      </div>
+
+      <div class="transaction-list">               
         <div class="list-header">
           <h3>交易记录</h3>
           <div class="list-stats">
@@ -114,6 +118,7 @@
           <div class="list-columns">
             <div class="col">时间</div>
             <div class="col">类型</div>
+            <div class="col">地址</div>
             <div class="col">金额</div>
             <div class="col">状态</div>
           </div>
@@ -122,6 +127,11 @@
             <div class="col" data-label="类型">
               <span :class="['tx-type', tx.from_address === address ? 'out' : 'in']">
                 {{ tx.from_address === address ? '转出' : '转入' }}
+              </span>
+            </div>
+            <div class="col" data-label="地址">
+              <span class="address-text">
+                {{ tx.from_address === address ? formatAddress(tx.to_address) : formatAddress(tx.from_address) }}
               </span>
             </div>
             <div class="col" data-label="金额">{{ formatAmount(tx.quant / 1e6) }} USDT</div>
@@ -138,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
 
@@ -146,13 +156,17 @@ const address = ref('TFGqVkQCdHxMEZd7Ys6MbvTh8MwPuB7Lkh')
 const loading = ref(false)
 const addressData = ref(null)
 const addressType = ref('')
-const chartRef = ref(null)
+const transactionChart = ref(null)
+const addressStatsChart = ref(null)
 const chartType = ref('line')
-let chart = null
 const transactions = ref([])
 const error = ref(null)
 const analysisResult = ref(null)
 const addressInfo = ref(null)
+
+// 图表实例
+let chartInstance = null
+let addressStatsChartInstance = null
 
 const ETHERSCAN_API_KEY = 'YOUR_API_KEY'
 const TRONSCAN_API_KEY = 'f63c8a63-e0d6-4a04-a9b5-1d41b5e668cc'
@@ -168,9 +182,9 @@ const getProfileType = (type) => {
 }
 
 const initChart = (transactions, type) => {
-  if (!chartRef.value) return
+  if (!transactionChart.value) return
   
-  chart = echarts.init(chartRef.value)
+  chartInstance = echarts.init(transactionChart.value)
   const dates = transactions.map(tx => {
     const timestamp = type === 'ETH' ? tx.timeStamp : tx.block_timestamp / 1000
     return new Date(timestamp * 1000).toLocaleDateString()
@@ -252,7 +266,7 @@ const initChart = (transactions, type) => {
     }]
   }
 
-  chart.setOption(option)
+  chartInstance.setOption(option)
 }
 
 watch(chartType, () => {
@@ -347,7 +361,7 @@ const analyzeAddress = async () => {
 
     // 计算分析结果
     const totalTransactions = transactions.value.length
-    const { totalIn, totalOut } = calculateInOutValues(transactions.value, address.value)
+    const { totalIn, totalOut, addressStats } = calculateInOutValues(transactions.value, address.value)
     const firstTransactionTime = getFirstTransactionTimestamp(transactions.value)
     const transactionFrequency = analyzeProfile(transactions.value)
 
@@ -388,7 +402,12 @@ const analyzeAddress = async () => {
 
     // 绘制图表
     nextTick(() => {
-      drawTransactionChart(transactions.value, addressType)
+      if (transactions.value && transactions.value.length > 0) {
+        setTimeout(() => {
+          drawTransactionChart(transactions.value, addressType)
+          drawAddressStatsChart(addressStats)
+        }, 300)
+      }
     })
   } catch (err) {
     error.value = err.message
@@ -411,17 +430,23 @@ const calculateTotalValue = (transactions, type) => {
 const calculateInOutValues = (transactions, address) => {
   let totalIn = 0
   let totalOut = 0
+  const addressStats = {
+    in: {},
+    out: {}
+  }
   
   transactions.forEach(tx => {
     const amount = parseFloat(tx.quant || 0) / 1e6
     if (tx.from_address === address) {
       totalOut += amount
+      addressStats.out[tx.to_address] = (addressStats.out[tx.to_address] || 0) + amount
     } else {
       totalIn += amount
+      addressStats.in[tx.from_address] = (addressStats.in[tx.from_address] || 0) + amount
     }
   })
   
-  return { totalIn, totalOut }
+  return { totalIn, totalOut, addressStats }
 }
 
 const getFirstTransactionTimestamp = (transactions) => {
@@ -481,8 +506,267 @@ const formatDate = (timestamp) => {
 }
 
 const drawTransactionChart = (transactions, type) => {
-  // Implementation of drawTransactionChart function
+  if (!transactionChart.value) {
+    console.error('Transaction chart container not found')
+    return
+  }
+  
+  // 确保容器有尺寸
+  const container = transactionChart.value
+  container.style.width = '100%'
+  container.style.height = '400px'
+  
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  
+  try {
+    chartInstance = echarts.init(container)
+    const dates = transactions.map(tx => {
+      const timestamp = tx.block_ts / 1000
+      return new Date(timestamp * 1000).toLocaleDateString()
+    })
+    const values = transactions.map(tx => {
+      const amount = tx.quant || 0
+      return parseFloat(amount) / 1e6
+    })
+
+    const option = {
+      title: {
+        text: '交易金额趋势',
+        textStyle: {
+          color: '#333',
+          fontSize: 16
+        }
+      },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderColor: '#ccc',
+        borderWidth: 1,
+        textStyle: {
+          color: '#333'
+        },
+        formatter: function(params) {
+          return `${params[0].axisValue}<br/>金额: ${formatAmount(params[0].value)} USDT`
+        }
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLine: {
+          lineStyle: {
+            color: '#ddd'
+          }
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'USDT',
+        axisLine: {
+          lineStyle: {
+            color: '#ddd'
+          }
+        },
+        splitLine: {
+          lineStyle: {
+            color: '#eee'
+          }
+        }
+      },
+      series: [{
+        data: values,
+        type: 'line',
+        smooth: true,
+        itemStyle: {
+          color: '#3b82f6'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            {
+              offset: 0,
+              color: 'rgba(59, 130, 246, 0.3)'
+            },
+            {
+              offset: 1,
+              color: 'rgba(255,255,255,0)'
+            }
+          ])
+        }
+      }]
+    }
+
+    chartInstance.setOption(option)
+    chartInstance.resize()
+  } catch (error) {
+    console.error('Error initializing transaction chart:', error)
+  }
 }
+
+const drawAddressStatsChart = (addressStats) => {
+  if (!addressStatsChart.value) {
+    console.error('Address stats chart container not found')
+    return
+  }
+  
+  // 确保容器有尺寸
+  const container = addressStatsChart.value
+  container.style.width = '100%'
+  container.style.height = '400px'
+  
+  if (addressStatsChartInstance) {
+    addressStatsChartInstance.dispose()
+  }
+  
+  try {
+    addressStatsChartInstance = echarts.init(container)
+    // 处理转入数据
+    const inData = Object.entries(addressStats.in)
+      .map(([addr, amount]) => ({
+        name: formatAddress(addr),
+        value: amount
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10) // 只显示前10个
+
+    // 处理转出数据
+    const outData = Object.entries(addressStats.out)
+      .map(([addr, amount]) => ({
+        name: formatAddress(addr),
+        value: amount
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10) // 只显示前10个
+
+    // 合并所有地址作为Y轴数据
+    const allAddresses = [...new Set([
+      ...inData.map(item => item.name),
+      ...outData.map(item => item.name)
+    ])]
+
+    const option = {
+      title: {
+        text: '交易地址统计',
+        textStyle: {
+          color: '#333',
+          fontSize: 16
+        }
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        },
+        formatter: function(params) {
+          let result = params[0].name + '<br/>'
+          params.forEach(param => {
+            if (param.value > 0) {
+              result += `${param.seriesName}: ${formatAmount(param.value)} USDT<br/>`
+            }
+          })
+          return result
+        }
+      },
+      legend: {
+        data: ['转入', '转出'],
+        top: 30
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'value',
+        name: 'USDT',
+        axisLine: {
+          lineStyle: {
+            color: '#ddd'
+          }
+        },
+        splitLine: {
+          lineStyle: {
+            color: '#eee'
+          }
+        }
+      },
+      yAxis: {
+        type: 'category',
+        data: allAddresses,
+        axisLine: {
+          lineStyle: {
+            color: '#ddd'
+          }
+        }
+      },
+      series: [
+        {
+          name: '转入',
+          type: 'bar',
+          data: allAddresses.map(addr => {
+            const found = inData.find(item => item.name === addr)
+            return found ? found.value : 0
+          }),
+          itemStyle: {
+            color: '#4caf50'
+          }
+        },
+        {
+          name: '转出',
+          type: 'bar',
+          data: allAddresses.map(addr => {
+            const found = outData.find(item => item.name === addr)
+            return found ? found.value : 0
+          }),
+          itemStyle: {
+            color: '#f44336'
+          }
+        }
+      ]
+    }
+
+    addressStatsChartInstance.setOption(option)
+    addressStatsChartInstance.resize()
+  } catch (error) {
+    console.error('Error initializing address stats chart:', error)
+  }
+}
+
+const formatAddress = (address) => {
+  if (!address) return '--'
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
+
+// 窗口大小变化时的重绘
+const handleResize = () => {
+  if (chartInstance) {
+    chartInstance.resize()
+  }
+  if (addressStatsChartInstance) {
+    addressStatsChartInstance.resize()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  if (addressStatsChartInstance) {
+    addressStatsChartInstance.dispose()
+  }
+})
 </script>
 
 <style scoped>
@@ -714,6 +998,17 @@ const drawTransactionChart = (transactions, type) => {
   height: 400px;
   width: 100%;
   margin-bottom: 20px;
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
 }
 
 .transaction-list {
@@ -750,7 +1045,7 @@ const drawTransactionChart = (transactions, type) => {
 
 .list-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   gap: 20px;
   padding: 16px;
   background: #f8fafc;
@@ -763,7 +1058,7 @@ const drawTransactionChart = (transactions, type) => {
 
 .transaction-item {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   gap: 20px;
   padding: 16px;
   border-bottom: 1px solid #e2e8f0;
@@ -809,6 +1104,13 @@ const drawTransactionChart = (transactions, type) => {
   background: rgba(244, 67, 54, 0.1);
   color: #f44336;
   border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+.address-text {
+  font-family: monospace;
+  font-size: 14px;
+  color: #64748b;
+  word-break: break-all;
 }
 
 @media (max-width: 768px) {
@@ -867,8 +1169,8 @@ const drawTransactionChart = (transactions, type) => {
   }
 
   .chart-container {
-    height: 250px;
-    margin-bottom: 15px;
+    height: 300px;
+    padding: 15px;
   }
 
   .transaction-list {
@@ -908,6 +1210,10 @@ const drawTransactionChart = (transactions, type) => {
 
   .sub-info {
     font-size: 11px;
+  }
+
+  .address-text {
+    font-size: 12px;
   }
 }
 
@@ -952,8 +1258,8 @@ const drawTransactionChart = (transactions, type) => {
   }
 
   .chart-container {
-    height: 200px;
-    margin-bottom: 12px;
+    height: 250px;
+    padding: 10px;
   }
 
   .transaction-list {
@@ -993,6 +1299,10 @@ const drawTransactionChart = (transactions, type) => {
 
   .sub-info {
     font-size: 10px;
+  }
+
+  .address-text {
+    font-size: 11px;
   }
 }
 </style>

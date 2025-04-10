@@ -39,6 +39,20 @@
     </div>
 
     <div v-if="analysisResult" class="analysis-result">
+      <div class="screenshot-btn" @click="showScreenshotOptions">
+        <i class="icon-camera"></i>
+        截图
+      </div>
+      <div v-if="showOptions" class="screenshot-options">
+        <div class="option-item" @click="captureScreenshot('clipboard')">
+          <i class="icon-clipboard"></i>
+          复制到剪贴板
+        </div>
+        <div class="option-item" @click="captureScreenshot('download')">
+          <i class="icon-download"></i>
+          保存到本地
+        </div>
+      </div>
       <div class="result-grid">
         <div class="result-card">
           <div class="card-icon">📊</div>
@@ -99,12 +113,13 @@
         </div>
       </div>
 
-      <div class="chart-container">
-        <div ref="transactionChart" class="chart"></div>
-      </div>
-
-      <div class="chart-container">
-        <div ref="addressStatsChart" class="chart"></div>
+      <div class="charts-container">
+        <div class="chart-container">
+          <div ref="transactionChart" class="chart"></div>
+        </div>
+        <div class="chart-container">
+          <div ref="addressStatsChart" class="chart"></div>
+        </div>
       </div>
 
       <div class="transaction-list">               
@@ -151,6 +166,7 @@
 import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
+import html2canvas from 'html2canvas'
 
 const address = ref('TFGqVkQCdHxMEZd7Ys6MbvTh8MwPuB7Lkh')
 const loading = ref(false)
@@ -163,6 +179,7 @@ const transactions = ref([])
 const error = ref(null)
 const analysisResult = ref(null)
 const addressInfo = ref(null)
+const showOptions = ref(false)
 
 // 图表实例
 let chartInstance = null
@@ -511,7 +528,6 @@ const drawTransactionChart = (transactions, type) => {
     return
   }
   
-  // 确保容器有尺寸
   const container = transactionChart.value
   container.style.width = '100%'
   container.style.height = '400px'
@@ -536,25 +552,31 @@ const drawTransactionChart = (transactions, type) => {
         text: '交易金额趋势',
         textStyle: {
           color: '#333',
-          fontSize: 16
-        }
+          fontSize: 18,
+          fontWeight: 'normal'
+        },
+        left: 'center',
+        top: 20
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderColor: '#ccc',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: '#ddd',
         borderWidth: 1,
         textStyle: {
-          color: '#333'
+          color: '#333',
+          fontSize: 14
         },
         formatter: function(params) {
-          return `${params[0].axisValue}<br/>金额: ${formatAmount(params[0].value)} USDT`
+          return `<div style="font-weight: bold; margin-bottom: 5px;">${params[0].axisValue}</div>
+                  <div style="color: #3b82f6">金额: ${formatAmount(params[0].value)} USDT</div>`
         }
       },
       grid: {
         left: '3%',
         right: '4%',
         bottom: '3%',
+        top: '15%',
         containLabel: true
       },
       xAxis: {
@@ -564,11 +586,19 @@ const drawTransactionChart = (transactions, type) => {
           lineStyle: {
             color: '#ddd'
           }
+        },
+        axisLabel: {
+          color: '#666',
+          fontSize: 12
         }
       },
       yAxis: {
         type: 'value',
         name: 'USDT',
+        nameTextStyle: {
+          color: '#666',
+          fontSize: 12
+        },
         axisLine: {
           lineStyle: {
             color: '#ddd'
@@ -576,16 +606,30 @@ const drawTransactionChart = (transactions, type) => {
         },
         splitLine: {
           lineStyle: {
-            color: '#eee'
+            color: '#eee',
+            type: 'dashed'
           }
+        },
+        axisLabel: {
+          color: '#666',
+          fontSize: 12
         }
       },
       series: [{
         data: values,
         type: 'line',
         smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
         itemStyle: {
-          color: '#3b82f6'
+          color: '#3b82f6',
+          borderWidth: 2
+        },
+        lineStyle: {
+          width: 3,
+          shadowColor: 'rgba(0, 0, 0, 0.1)',
+          shadowBlur: 10,
+          shadowOffsetY: 5
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -595,7 +639,7 @@ const drawTransactionChart = (transactions, type) => {
             },
             {
               offset: 1,
-              color: 'rgba(255,255,255,0)'
+              color: 'rgba(59, 130, 246, 0.1)'
             }
           ])
         }
@@ -615,7 +659,6 @@ const drawAddressStatsChart = (addressStats) => {
     return
   }
   
-  // 确保容器有尺寸
   const container = addressStatsChart.value
   container.style.width = '100%'
   container.style.height = '400px'
@@ -626,48 +669,66 @@ const drawAddressStatsChart = (addressStats) => {
   
   try {
     addressStatsChartInstance = echarts.init(container)
+    
+    // 合并转入和转出数据，计算每个地址的总交易量
+    const addressTotals = {}
+    
     // 处理转入数据
-    const inData = Object.entries(addressStats.in)
-      .map(([addr, amount]) => ({
-        name: formatAddress(addr),
-        value: amount
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10) // 只显示前10个
-
+    Object.entries(addressStats.in).forEach(([addr, amount]) => {
+      addressTotals[addr] = (addressTotals[addr] || 0) + amount
+    })
+    
     // 处理转出数据
-    const outData = Object.entries(addressStats.out)
-      .map(([addr, amount]) => ({
-        name: formatAddress(addr),
-        value: amount
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10) // 只显示前10个
-
-    // 合并所有地址作为Y轴数据
-    const allAddresses = [...new Set([
-      ...inData.map(item => item.name),
-      ...outData.map(item => item.name)
-    ])]
-
+    Object.entries(addressStats.out).forEach(([addr, amount]) => {
+      addressTotals[addr] = (addressTotals[addr] || 0) + amount
+    })
+    
+    // 按照总交易量排序
+    const sortedAddresses = Object.entries(addressTotals)
+      .sort(([, a], [, b]) => b - a)
+      .map(([addr]) => addr)
+      .slice(0, 10) // 只取前10个地址
+    
+    // 准备图表数据
+    const inData = sortedAddresses.map(addr => ({
+      name: formatAddress(addr),
+      value: addressStats.in[addr] || 0
+    }))
+    
+    const outData = sortedAddresses.map(addr => ({
+      name: formatAddress(addr),
+      value: addressStats.out[addr] || 0
+    }))
+    
     const option = {
       title: {
         text: '交易地址统计',
         textStyle: {
           color: '#333',
-          fontSize: 16
-        }
+          fontSize: 18,
+          fontWeight: 'normal'
+        },
+        left: 'center',
+        top: 20
       },
       tooltip: {
         trigger: 'axis',
         axisPointer: {
           type: 'shadow'
         },
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderColor: '#ddd',
+        borderWidth: 1,
+        textStyle: {
+          color: '#333',
+          fontSize: 14
+        },
         formatter: function(params) {
-          let result = params[0].name + '<br/>'
+          let result = `<div style="font-weight: bold; margin-bottom: 5px;">${params[0].name}</div>`
           params.forEach(param => {
             if (param.value > 0) {
-              result += `${param.seriesName}: ${formatAmount(param.value)} USDT<br/>`
+              const color = param.seriesName === '转入' ? '#4caf50' : '#f44336'
+              result += `<div style="color: ${color}">${param.seriesName}: ${formatAmount(param.value)} USDT</div>`
             }
           })
           return result
@@ -675,17 +736,30 @@ const drawAddressStatsChart = (addressStats) => {
       },
       legend: {
         data: ['转入', '转出'],
-        top: 30
+        top: 60,
+        right: '4%',
+        textStyle: {
+          color: '#666',
+          fontSize: 12
+        },
+        itemGap: 20,
+        itemWidth: 12,
+        itemHeight: 12
       },
       grid: {
         left: '3%',
         right: '4%',
         bottom: '3%',
+        top: '25%',
         containLabel: true
       },
       xAxis: {
         type: 'value',
         name: 'USDT',
+        nameTextStyle: {
+          color: '#666',
+          fontSize: 12
+        },
         axisLine: {
           lineStyle: {
             color: '#ddd'
@@ -693,41 +767,48 @@ const drawAddressStatsChart = (addressStats) => {
         },
         splitLine: {
           lineStyle: {
-            color: '#eee'
+            color: '#eee',
+            type: 'dashed'
           }
+        },
+        axisLabel: {
+          color: '#666',
+          fontSize: 12
         }
       },
       yAxis: {
         type: 'category',
-        data: allAddresses,
+        data: inData.map(item => item.name),
         axisLine: {
           lineStyle: {
             color: '#ddd'
           }
+        },
+        axisLabel: {
+          color: '#666',
+          fontSize: 12
         }
       },
       series: [
         {
           name: '转入',
           type: 'bar',
-          data: allAddresses.map(addr => {
-            const found = inData.find(item => item.name === addr)
-            return found ? found.value : 0
-          }),
+          data: inData.map(item => item.value),
           itemStyle: {
-            color: '#4caf50'
-          }
+            color: '#4caf50',
+            borderRadius: [0, 4, 4, 0]
+          },
+          barWidth: '40%'
         },
         {
           name: '转出',
           type: 'bar',
-          data: allAddresses.map(addr => {
-            const found = outData.find(item => item.name === addr)
-            return found ? found.value : 0
-          }),
+          data: outData.map(item => item.value),
           itemStyle: {
-            color: '#f44336'
-          }
+            color: '#f44336',
+            borderRadius: [0, 4, 4, 0]
+          },
+          barWidth: '40%'
         }
       ]
     }
@@ -766,6 +847,137 @@ onBeforeUnmount(() => {
   if (addressStatsChartInstance) {
     addressStatsChartInstance.dispose()
   }
+})
+
+const showScreenshotOptions = () => {
+  showOptions.value = !showOptions.value
+}
+
+const captureScreenshot = async (type) => {
+  try {
+    // 获取整个页面内容
+    const element = document.querySelector('.address-analysis')
+    if (!element) return
+
+    // 显示加载提示
+    const loading = document.createElement('div')
+    loading.className = 'screenshot-loading'
+    loading.innerHTML = '正在生成截图...'
+    document.body.appendChild(loading)
+
+    // 创建截图
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      allowTaint: true,
+      foreignObjectRendering: true,
+      height: element.scrollHeight,
+      windowHeight: element.scrollHeight,
+      onclone: (clonedDoc) => {
+        // 确保克隆的文档中包含所有样式
+        const style = clonedDoc.createElement('style')
+        style.textContent = `
+          .address-analysis {
+            background-color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+          }
+          .hero-section {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+            border-radius: 16px;
+            color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+          }
+          .result-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+          }
+          .result-card {
+            text-align: center;
+            padding: 24px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+          }
+          .chart-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+          }
+          .transaction-list {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+          }
+          .screenshot-btn, .screenshot-options {
+            display: none;
+          }
+        `
+        clonedDoc.head.appendChild(style)
+      }
+    })
+
+    if (type === 'clipboard') {
+      // 复制到剪贴板
+      canvas.toBlob((blob) => {
+        const item = new ClipboardItem({ 'image/png': blob })
+        navigator.clipboard.write([item])
+          .then(() => {
+            alert('截图已复制到剪贴板')
+          })
+          .catch(() => {
+            alert('复制失败，请尝试保存到本地')
+          })
+          .finally(() => {
+            document.body.removeChild(loading)
+            showOptions.value = false
+          })
+      }, 'image/png')
+    } else {
+      // 保存到本地
+      canvas.toBlob((blob) => {
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = `区块链地址分析_${address.value.slice(0, 6)}...${address.value.slice(-4)}.png`
+        link.click()
+        URL.revokeObjectURL(link.href)
+        document.body.removeChild(loading)
+        showOptions.value = false
+      }, 'image/png')
+    }
+  } catch (error) {
+    console.error('截图失败:', error)
+    alert('截图失败，请重试')
+    document.body.removeChild(loading)
+    showOptions.value = false
+  }
+}
+
+// 点击其他地方关闭选项
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.screenshot-btn') && !event.target.closest('.screenshot-options')) {
+    showOptions.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -918,6 +1130,88 @@ onBeforeUnmount(() => {
   margin-top: 20px;
 }
 
+.screenshot-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #3b82f6;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.screenshot-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.screenshot-btn .icon-camera {
+  width: 16px;
+  height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-10c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.screenshot-options {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  z-index: 1000;
+}
+
+.option-item {
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-item:hover {
+  background: #f8fafc;
+}
+
+.option-item .icon-clipboard {
+  width: 16px;
+  height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.option-item .icon-download {
+  width: 16px;
+  height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E") no-repeat center;
+  background-size: contain;
+}
+
+.screenshot-loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  z-index: 1001;
+}
+
 .result-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -994,15 +1288,27 @@ onBeforeUnmount(() => {
   font-weight: normal;
 }
 
+.charts-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
 .chart-container {
   height: 400px;
   width: 100%;
-  margin-bottom: 20px;
   background: white;
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   position: relative;
+  transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 
 .chart {
@@ -1168,9 +1474,18 @@ onBeforeUnmount(() => {
     margin-bottom: 8px;
   }
 
+  .charts-container {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
   .chart-container {
     height: 300px;
     padding: 15px;
+  }
+
+  .chart {
+    min-height: 300px;
   }
 
   .transaction-list {
@@ -1215,6 +1530,18 @@ onBeforeUnmount(() => {
   .address-text {
     font-size: 12px;
   }
+
+  .screenshot-btn {
+    top: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .screenshot-options {
+    top: 50px;
+    right: 10px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1257,9 +1584,18 @@ onBeforeUnmount(() => {
     margin-bottom: 6px;
   }
 
+  .charts-container {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
   .chart-container {
     height: 250px;
     padding: 10px;
+  }
+
+  .chart {
+    min-height: 250px;
   }
 
   .transaction-list {
@@ -1303,6 +1639,18 @@ onBeforeUnmount(() => {
 
   .address-text {
     font-size: 11px;
+  }
+
+  .screenshot-btn {
+    top: 5px;
+    right: 5px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .screenshot-options {
+    top: 45px;
+    right: 5px;
   }
 }
 </style>

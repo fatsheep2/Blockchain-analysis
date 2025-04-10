@@ -117,13 +117,16 @@
         <div class="section-header">
           <h3>钱包余额</h3>
           <div class="total-value">
-            总价值: {{ formatAmount(totalWalletValue) }} USDT
+            <span class="label">总价值</span>
+            <span class="amount">{{ formatAmount(totalWalletValue) }} USDT</span>
           </div>
         </div>
         <div class="token-list">
           <div class="token-item" v-for="token in tokenBalances" :key="token.symbol">
             <div class="token-info">
-              <div class="token-icon">{{ getTokenIcon(token.symbol) }}</div>
+              <div class="token-icon" :style="{ backgroundImage: token.logo ? `url(${token.logo})` : 'none' }">
+                <span v-if="!token.logo">{{ getTokenIcon(token.symbol) }}</span>
+              </div>
               <div class="token-details">
                 <div class="token-name">{{ token.name }}</div>
                 <div class="token-symbol">{{ token.symbol }}</div>
@@ -131,7 +134,10 @@
             </div>
             <div class="token-balance">
               <div class="amount">{{ formatAmount(token.balance) }}</div>
-              <div class="usdt-value" v-if="token.usdtValue">≈ {{ formatAmount(token.usdtValue) }} USDT</div>
+              <div class="usdt-value" v-if="token.usdtValue">
+                <span class="label">≈</span>
+                <span class="amount">{{ formatAmount(token.usdtValue) }} USDT</span>
+              </div>
             </div>
           </div>
         </div>
@@ -143,6 +149,12 @@
         </div>
         <div class="chart-container">
           <div ref="addressStatsChart" class="chart"></div>
+        </div>
+        <div class="chart-container">
+          <div ref="incomingPieChart" class="chart"></div>
+        </div>
+        <div class="chart-container">
+          <div ref="outgoingPieChart" class="chart"></div>
         </div>
       </div>
 
@@ -199,7 +211,7 @@
 import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts/core'
-import { LineChart, BarChart } from 'echarts/charts'
+import { LineChart, BarChart, PieChart } from 'echarts/charts'
 import {
   TitleComponent,
   TooltipComponent,
@@ -217,6 +229,7 @@ echarts.use([
   LegendComponent,
   LineChart,
   BarChart,
+  PieChart,
   CanvasRenderer
 ])
 
@@ -226,6 +239,8 @@ const addressData = ref(null)
 const addressType = ref('TRX')
 const transactionChart = ref(null)
 const addressStatsChart = ref(null)
+const incomingPieChart = ref(null)
+const outgoingPieChart = ref(null)
 const chartType = ref('line')
 const transactions = ref([])
 const error = ref(null)
@@ -255,9 +270,11 @@ const showOptions = ref(false)
 const tokenBalances = ref([])
 const totalWalletValue = ref(0)
 
-// 图表实例
+// 声明图表实例
 let chartInstance = null
 let addressStatsChartInstance = null
+let incomingPieChartInstance = null
+let outgoingPieChartInstance = null
 
 const ETHERSCAN_API_KEY = 'YOUR_API_KEY'
 const TRONSCAN_API_KEY = 'f63c8a63-e0d6-4a04-a9b5-1d41b5e668cc'
@@ -525,6 +542,7 @@ const analyzeAddress = async () => {
         setTimeout(() => {
           drawTransactionChart(transactions.value, detectedType)
           drawAddressStatsChart(addressStats)
+          drawPieCharts(addressStats)
         }, 300)
       }
     })
@@ -794,12 +812,14 @@ const drawAddressStatsChart = (addressStats) => {
     // 准备图表数据
     const inData = sortedAddresses.map(addr => ({
       name: formatAddress(addr),
-      value: addressStats.in[addr] || 0
+      value: addressStats.in[addr] || 0,
+      fullAddress: addr // 保存完整地址
     }))
     
     const outData = sortedAddresses.map(addr => ({
       name: formatAddress(addr),
-      value: addressStats.out[addr] || 0
+      value: addressStats.out[addr] || 0,
+      fullAddress: addr // 保存完整地址
     }))
     
     const option = {
@@ -833,6 +853,7 @@ const drawAddressStatsChart = (addressStats) => {
               result += `<div style="color: ${color}">${param.seriesName}: ${formatAmount(param.value)} USDT</div>`
             }
           })
+          result += `<div style="margin-top: 5px; color: #666; font-size: 12px;">点击地址可复制</div>`
           return result
         }
       },
@@ -888,7 +909,10 @@ const drawAddressStatsChart = (addressStats) => {
         },
         axisLabel: {
           color: '#666',
-          fontSize: 12
+          fontSize: 12,
+          formatter: function(value, index) {
+            return value + ' 📋'
+          }
         }
       },
       series: [
@@ -917,8 +941,243 @@ const drawAddressStatsChart = (addressStats) => {
 
     addressStatsChartInstance.setOption(option)
     addressStatsChartInstance.resize()
+
+    // 添加点击事件
+    addressStatsChartInstance.on('click', function(params) {
+      if (params.componentType === 'yAxis') {
+        const index = params.value
+        const fullAddress = inData[index].fullAddress
+        copyToClipboard(fullAddress)
+      } else if (params.componentType === 'series') {
+        const index = params.dataIndex
+        const fullAddress = inData[index].fullAddress
+        copyToClipboard(fullAddress)
+      }
+    })
   } catch (error) {
     console.error('Error initializing address stats chart:', error)
+  }
+}
+
+const drawPieCharts = (addressStats) => {
+  // 绘制转入地址饼图
+  if (incomingPieChart.value) {
+    const container = incomingPieChart.value
+    container.style.width = '100%'
+    container.style.height = '400px'
+    
+    if (incomingPieChartInstance) {
+      incomingPieChartInstance.dispose()
+    }
+    
+    try {
+      incomingPieChartInstance = echarts.init(container)
+      
+      // 处理转入数据
+      const inData = Object.entries(addressStats.in)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([addr, amount]) => ({
+          name: formatAddress(addr),
+          value: amount,
+          fullAddress: addr
+        }))
+      
+      const option = {
+        title: {
+          text: '转入地址分布',
+          textStyle: {
+            color: '#333',
+            fontSize: 18,
+            fontWeight: 'normal'
+          },
+          left: 'center',
+          top: 20
+        },
+        tooltip: {
+          trigger: 'item',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderColor: '#ddd',
+          borderWidth: 1,
+          textStyle: {
+            color: '#333',
+            fontSize: 14
+          },
+          formatter: function(params) {
+            const percentage = ((params.value / Object.values(addressStats.in).reduce((a, b) => a + b, 0)) * 100).toFixed(2)
+            return `<div style="font-weight: bold; margin-bottom: 5px;">${params.name}</div>
+                    <div style="color: #4caf50">金额: ${formatAmount(params.value)} USDT</div>
+                    <div style="color: #666">占比: ${percentage}%</div>
+                    <div style="margin-top: 5px; color: #666; font-size: 12px;">点击地址可复制</div>`
+          }
+        },
+        legend: {
+          type: 'scroll',
+          orient: 'vertical',
+          right: 10,
+          top: 50,
+          bottom: 20,
+          textStyle: {
+            color: '#666',
+            fontSize: 12
+          }
+        },
+        series: [{
+          name: '转入地址',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['40%', '50%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: false,
+            position: 'center'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: 20,
+              fontWeight: 'bold'
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: inData
+        }]
+      }
+
+      incomingPieChartInstance.setOption(option)
+      incomingPieChartInstance.resize()
+
+      // 添加点击事件
+      incomingPieChartInstance.on('click', function(params) {
+        if (params.data.fullAddress) {
+          copyToClipboard(params.data.fullAddress)
+        }
+      })
+    } catch (error) {
+      console.error('Error initializing incoming pie chart:', error)
+    }
+  }
+
+  // 绘制转出地址饼图
+  if (outgoingPieChart.value) {
+    const container = outgoingPieChart.value
+    container.style.width = '100%'
+    container.style.height = '400px'
+    
+    if (outgoingPieChartInstance) {
+      outgoingPieChartInstance.dispose()
+    }
+    
+    try {
+      outgoingPieChartInstance = echarts.init(container)
+      
+      // 处理转出数据
+      const outData = Object.entries(addressStats.out)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([addr, amount]) => ({
+          name: formatAddress(addr),
+          value: amount,
+          fullAddress: addr
+        }))
+      
+      const option = {
+        title: {
+          text: '转出地址分布',
+          textStyle: {
+            color: '#333',
+            fontSize: 18,
+            fontWeight: 'normal'
+          },
+          left: 'center',
+          top: 20
+        },
+        tooltip: {
+          trigger: 'item',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderColor: '#ddd',
+          borderWidth: 1,
+          textStyle: {
+            color: '#333',
+            fontSize: 14
+          },
+          formatter: function(params) {
+            const percentage = ((params.value / Object.values(addressStats.out).reduce((a, b) => a + b, 0)) * 100).toFixed(2)
+            return `<div style="font-weight: bold; margin-bottom: 5px;">${params.name}</div>
+                    <div style="color: #f44336">金额: ${formatAmount(params.value)} USDT</div>
+                    <div style="color: #666">占比: ${percentage}%</div>
+                    <div style="margin-top: 5px; color: #666; font-size: 12px;">点击地址可复制</div>`
+          }
+        },
+        legend: {
+          type: 'scroll',
+          orient: 'vertical',
+          right: 10,
+          top: 50,
+          bottom: 20,
+          textStyle: {
+            color: '#666',
+            fontSize: 12
+          }
+        },
+        series: [{
+          name: '转出地址',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['40%', '50%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: false,
+            position: 'center'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: 20,
+              fontWeight: 'bold'
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: outData
+        }]
+      }
+
+      outgoingPieChartInstance.setOption(option)
+      outgoingPieChartInstance.resize()
+
+      // 添加点击事件
+      outgoingPieChartInstance.on('click', function(params) {
+        if (params.data.fullAddress) {
+          copyToClipboard(params.data.fullAddress)
+        }
+      })
+    } catch (error) {
+      console.error('Error initializing outgoing pie chart:', error)
+    }
   }
 }
 
@@ -935,6 +1194,12 @@ const handleResize = () => {
   if (addressStatsChartInstance) {
     addressStatsChartInstance.resize()
   }
+  if (incomingPieChartInstance) {
+    incomingPieChartInstance.resize()
+  }
+  if (outgoingPieChartInstance) {
+    outgoingPieChartInstance.resize()
+  }
 }
 
 onMounted(() => {
@@ -945,9 +1210,19 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
   if (chartInstance) {
     chartInstance.dispose()
+    chartInstance = null
   }
   if (addressStatsChartInstance) {
     addressStatsChartInstance.dispose()
+    addressStatsChartInstance = null
+  }
+  if (incomingPieChartInstance) {
+    incomingPieChartInstance.dispose()
+    incomingPieChartInstance = null
+  }
+  if (outgoingPieChartInstance) {
+    outgoingPieChartInstance.dispose()
+    outgoingPieChartInstance = null
   }
 })
 
@@ -1143,17 +1418,38 @@ onBeforeUnmount(() => {
 
 const copyToClipboard = async (text) => {
   try {
-    await navigator.clipboard.writeText(text)
+    // 创建一个临时的textarea元素
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    
+    // 选择文本
+    textarea.select()
+    textarea.setSelectionRange(0, 99999)
+    
+    // 执行复制命令
+    document.execCommand('copy')
+    
+    // 移除临时元素
+    document.body.removeChild(textarea)
+    
     // 显示复制成功提示
     const toast = document.createElement('div')
     toast.className = 'copy-toast'
     toast.textContent = '地址已复制'
     document.body.appendChild(toast)
+    
+    // 2秒后移除提示
     setTimeout(() => {
-      document.body.removeChild(toast)
+      if (toast.parentNode) {
+        document.body.removeChild(toast)
+      }
     }, 2000)
   } catch (err) {
     console.error('复制失败:', err)
+    alert('复制失败，请手动复制')
   }
 }
 
@@ -1161,12 +1457,122 @@ const getTokenIcon = (symbol) => {
   const icons = {
     'TRX': '🌐',
     'USDT': '💵',
+    'USDC': '💵',
+    'BTT': '🎮',
+    'JST': '🎮',
+    'SUN': '☀️',
+    'WIN': '🎰',
+    'NFT': '🖼️',
     'BTC': '₿',
     'ETH': 'Ξ',
-    'BTT': '🎮',
-    'JST': '🎯',
-    'SUN': '☀️',
-    'WIN': '🎰'
+    'BNB': '🔶',
+    'LTC': 'Ł',
+    'DOGE': 'Ð',
+    'XRP': '✕',
+    'ADA': '₳',
+    'DOT': '●',
+    'LINK': '🔗',
+    'UNI': '🦄',
+    'AAVE': '👻',
+    'CAKE': '🥞',
+    'SUSHI': '🍣',
+    'YFI': '💰',
+    'COMP': '💱',
+    'MKR': '🏦',
+    'SNX': '⚡',
+    'CRV': '🔄',
+    'BAL': '⚖️',
+    'REN': '🔄',
+    'KNC': '🔧',
+    'ZRX': '0x',
+    'BAT': '🦇',
+    'REP': '🏛️',
+    'OMG': '💎',
+    'ENJ': '🎮',
+    'MANA': '🎮',
+    'SAND': '🏖️',
+    'AXS': '🎮',
+    'CHZ': '⚽',
+    'GRT': '🌐',
+    'MATIC': '🔷',
+    'AVAX': '❄️',
+    'FTM': '👻',
+    'ONE': '1️⃣',
+    'SOL': '🔆',
+    'ATOM': '⚛️',
+    'NEAR': '🌐',
+    'ALGO': '🔷',
+    'VET': '🔋',
+    'THETA': '🎥',
+    'XTZ': 'ꜩ',
+    'EOS': 'ε',
+    'TRX': '🌐',
+    'XLM': '★',
+    'HBAR': '⚡',
+    'IOTA': 'ι',
+    'NEO': '👾',
+    'ONT': '🔷',
+    'QTUM': 'Ⓠ',
+    'WAVES': '🌊',
+    'ZIL': 'ⓩ',
+    'RVN': '🦊',
+    'SC': '💎',
+    'HNT': '📡',
+    'FIL': '🗄️',
+    'AR': '🗄️',
+    'STORJ': '🗄️',
+    'ANKR': '🔗',
+    'COTI': '💎',
+    'OCEAN': '🌊',
+    'BAND': '🎸',
+    'NMR': '💎',
+    'UMA': '⚖️',
+    'API3': '🔗',
+    'PHA': '🔒',
+    'POLS': '🎮',
+    'DIA': '📊',
+    'RAMP': '🔄',
+    'PLA': '🎮',
+    'TVK': '🎮',
+    'BADGER': '🦡',
+    'FIS': '🎣',
+    'BOND': '🔗',
+    'KP3R': '🔧',
+    'ALPHA': 'α',
+    'COVER': '🛡️',
+    'PICKLE': '🥒',
+    'CREAM': '🍦',
+    'SWRV': '🔄',
+    'SUSHI': '🍣',
+    'YAM': '🍠',
+    'SPELL': '✨',
+    'ICE': '❄️',
+    'TRU': '🔍',
+    'LON': '🔍',
+    'MASK': '🎭',
+    'API3': '🔗',
+    'PHA': '🔒',
+    'POLS': '🎮',
+    'DIA': '📊',
+    'RAMP': '🔄',
+    'PLA': '🎮',
+    'TVK': '🎮',
+    'BADGER': '🦡',
+    'FIS': '🎣',
+    'BOND': '🔗',
+    'KP3R': '🔧',
+    'ALPHA': 'α',
+    'COVER': '🛡️',
+    'PICKLE': '🥒',
+    'CREAM': '🍦',
+    'SWRV': '🔄',
+    'SUSHI': '🍣',
+    'YAM': '🍠',
+    'SPELL': '✨',
+    'ICE': '❄️',
+    'TRU': '🔍',
+    'LON': '🔍',
+    'MASK': '🎭'
   }
   return icons[symbol] || '💎'
 }
@@ -1567,13 +1973,14 @@ const getTokenIcon = (symbol) => {
   padding: 24px;
   margin-bottom: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  animation: slideUp 0.5s ease-out forwards;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e2e8f0;
 }
@@ -1586,11 +1993,23 @@ const getTokenIcon = (symbol) => {
 }
 
 .total-value {
-  font-size: 16px;
-  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: #f1f5f9;
   padding: 8px 16px;
   border-radius: 20px;
+}
+
+.total-value .label {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.total-value .amount {
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 .token-list {
@@ -1607,11 +2026,14 @@ const getTokenIcon = (symbol) => {
   background: #f8fafc;
   border-radius: 12px;
   transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
 }
 
 .token-item:hover {
   background: #f1f5f9;
   transform: translateX(4px);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 .token-info {
@@ -1621,7 +2043,6 @@ const getTokenIcon = (symbol) => {
 }
 
 .token-icon {
-  font-size: 24px;
   width: 48px;
   height: 48px;
   display: flex;
@@ -1630,6 +2051,10 @@ const getTokenIcon = (symbol) => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  font-size: 24px;
 }
 
 .token-details {
@@ -1646,6 +2071,11 @@ const getTokenIcon = (symbol) => {
 .token-symbol {
   font-size: 14px;
   color: #64748b;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 4px;
 }
 
 .token-balance {
@@ -1662,11 +2092,23 @@ const getTokenIcon = (symbol) => {
   font-size: 14px;
   color: #64748b;
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.token-balance .usdt-value .label {
+  color: #94a3b8;
+}
+
+.token-balance .usdt-value .amount {
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .charts-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 20px;
 }
@@ -1856,8 +2298,9 @@ const getTokenIcon = (symbol) => {
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 14px;
-  z-index: 1000;
+  z-index: 9999;
   animation: toastFade 2s ease-out forwards;
+  pointer-events: none;
 }
 
 @keyframes toastFade {
@@ -1936,7 +2379,6 @@ const getTokenIcon = (symbol) => {
 
   .charts-container {
     grid-template-columns: 1fr;
-    gap: 15px;
   }
 
   .chart-container {

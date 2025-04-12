@@ -167,11 +167,21 @@
         </div>
         <div class="list-content">
           <div class="list-columns">
-            <div class="col">时间</div>
-            <div class="col">类型</div>
-            <div class="col">地址</div>
-            <div class="col">金额</div>
-            <div class="col">状态</div>
+            <div class="col sortable" @click="sortTransactions('time')">
+              时间 {{ getSortIcon('time') }}
+            </div>
+            <div class="col sortable" @click="sortTransactions('type')">
+              类型 {{ getSortIcon('type') }}
+            </div>
+            <div class="col sortable" @click="sortTransactions('address')">
+              地址 {{ getSortIcon('address') }}
+            </div>
+            <div class="col sortable" @click="sortTransactions('amount')">
+              金额 {{ getSortIcon('amount') }}
+            </div>
+            <div class="col sortable" @click="sortTransactions('status')">
+              状态 {{ getSortIcon('status') }}
+            </div>
           </div>
           <div v-for="tx in transactions" :key="tx.transaction_id" class="transaction-item">
             <div class="col" data-label="时间">{{ formatDate(tx.block_ts / 1000) }}</div>
@@ -243,6 +253,10 @@ const incomingPieChart = ref(null)
 const outgoingPieChart = ref(null)
 const chartType = ref('line')
 const transactions = ref([])
+const sortConfig = ref({
+  key: 'time',
+  direction: 'desc'
+})
 const error = ref(null)
 const analysisResult = ref({
   balance: '- -',
@@ -791,35 +805,45 @@ const drawAddressStatsChart = (addressStats) => {
     addressStatsChartInstance = echarts.init(container)
     
     // 合并转入和转出数据，计算每个地址的总交易量
-    const addressTotals = {}
+    const addressData = {}
     
     // 处理转入数据
     Object.entries(addressStats.in).forEach(([addr, amount]) => {
-      addressTotals[addr] = (addressTotals[addr] || 0) + amount
+      addressData[addr] = {
+        in: amount,
+        out: 0,
+        total: amount
+      }
     })
     
     // 处理转出数据
     Object.entries(addressStats.out).forEach(([addr, amount]) => {
-      addressTotals[addr] = (addressTotals[addr] || 0) + amount
+      if (addressData[addr]) {
+        addressData[addr].out = amount
+        addressData[addr].total += amount
+      } else {
+        addressData[addr] = {
+          in: 0,
+          out: amount,
+          total: amount
+        }
+      }
     })
     
     // 按照总交易量排序
-    const sortedAddresses = Object.entries(addressTotals)
-      .sort(([, a], [, b]) => b - a)
-      .map(([addr]) => addr)
+    const sortedAddresses = Object.entries(addressData)
+      .sort(([, a], [, b]) => b.total - a.total)
       .slice(0, 10) // 只取前10个地址
     
     // 准备图表数据
-    const inData = sortedAddresses.map(addr => ({
+    const data = sortedAddresses.map(([addr, data]) => ({
       name: formatAddress(addr),
-      value: addressStats.in[addr] || 0,
-      fullAddress: addr // 保存完整地址
-    }))
-    
-    const outData = sortedAddresses.map(addr => ({
-      name: formatAddress(addr),
-      value: addressStats.out[addr] || 0,
-      fullAddress: addr // 保存完整地址
+      fullAddress: addr,
+      value: data.total,
+      inPercentage: (data.in / data.total * 100).toFixed(2),
+      outPercentage: (data.out / data.total * 100).toFixed(2),
+      inValue: data.in,
+      outValue: data.out
     }))
     
     const option = {
@@ -846,34 +870,18 @@ const drawAddressStatsChart = (addressStats) => {
           fontSize: 14
         },
         formatter: function(params) {
-          let result = `<div style="font-weight: bold; margin-bottom: 5px;">${params[0].name}</div>`
-          params.forEach(param => {
-            if (param.value > 0) {
-              const color = param.seriesName === '转入' ? '#4caf50' : '#f44336'
-              result += `<div style="color: ${color}">${param.seriesName}: ${formatAmount(param.value)} USDT</div>`
-            }
-          })
-          result += `<div style="margin-top: 5px; color: #666; font-size: 12px;">点击地址可复制</div>`
-          return result
+          const data = params[0].data
+          return `<div style="font-weight: bold; margin-bottom: 5px;">${params[0].name}</div>
+                  <div style="color: #4caf50">转入: ${formatAmount(data.inValue)} USDT (${data.inPercentage}%)</div>
+                  <div style="color: #f44336">转出: ${formatAmount(data.outValue)} USDT (${data.outPercentage}%)</div>
+                  <div style="margin-top: 5px; color: #666; font-size: 12px;">点击地址可复制</div>`
         }
-      },
-      legend: {
-        data: ['转入', '转出'],
-        top: 60,
-        right: '4%',
-        textStyle: {
-          color: '#666',
-          fontSize: 12
-        },
-        itemGap: 20,
-        itemWidth: 12,
-        itemHeight: 12
       },
       grid: {
         left: '3%',
         right: '4%',
         bottom: '3%',
-        top: '25%',
+        top: '15%',
         containLabel: true
       },
       xAxis: {
@@ -901,7 +909,7 @@ const drawAddressStatsChart = (addressStats) => {
       },
       yAxis: {
         type: 'category',
-        data: inData.map(item => item.name),
+        data: data.map(item => item.name),
         axisLine: {
           lineStyle: {
             color: '#ddd'
@@ -911,32 +919,32 @@ const drawAddressStatsChart = (addressStats) => {
           color: '#666',
           fontSize: 12,
           formatter: function(value, index) {
-            return value + ' 📋'
+            return value
           }
         }
       },
-      series: [
-        {
-          name: '转入',
-          type: 'bar',
-          data: inData.map(item => item.value),
-          itemStyle: {
-            color: '#4caf50',
-            borderRadius: [0, 4, 4, 0]
+      series: [{
+        name: '交易总额',
+        type: 'bar',
+        data: data,
+        itemStyle: {
+          color: function(params) {
+            const data = params.data
+            const inPercentage = parseFloat(data.inPercentage)
+            const outPercentage = parseFloat(data.outPercentage)
+            
+            // 根据转入转出比例生成渐变色
+            return new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: '#4caf50' },
+              { offset: inPercentage / 100, color: '#4caf50' },
+              { offset: inPercentage / 100, color: '#f44336' },
+              { offset: 1, color: '#f44336' }
+            ])
           },
-          barWidth: '40%'
+          borderRadius: [0, 4, 4, 0]
         },
-        {
-          name: '转出',
-          type: 'bar',
-          data: outData.map(item => item.value),
-          itemStyle: {
-            color: '#f44336',
-            borderRadius: [0, 4, 4, 0]
-          },
-          barWidth: '40%'
-        }
-      ]
+        barWidth: '40%'
+      }]
     }
 
     addressStatsChartInstance.setOption(option)
@@ -946,11 +954,11 @@ const drawAddressStatsChart = (addressStats) => {
     addressStatsChartInstance.on('click', function(params) {
       if (params.componentType === 'yAxis') {
         const index = params.value
-        const fullAddress = inData[index].fullAddress
+        const fullAddress = data[index].fullAddress
         copyToClipboard(fullAddress)
       } else if (params.componentType === 'series') {
         const index = params.dataIndex
-        const fullAddress = inData[index].fullAddress
+        const fullAddress = data[index].fullAddress
         copyToClipboard(fullAddress)
       }
     })
@@ -1435,13 +1443,19 @@ const copyToClipboard = async (text) => {
     // 移除临时元素
     document.body.removeChild(textarea)
     
-    // 显示复制成功提示
+    // 移除已存在的提示框（如果有）
+    const existingToast = document.querySelector('.copy-toast')
+    if (existingToast) {
+      document.body.removeChild(existingToast)
+    }
+    
+    // 创建新的提示框
     const toast = document.createElement('div')
     toast.className = 'copy-toast'
     toast.textContent = '地址已复制'
     document.body.appendChild(toast)
     
-    // 2秒后移除提示
+    // 2秒后移除提示框
     setTimeout(() => {
       if (toast.parentNode) {
         document.body.removeChild(toast)
@@ -1575,6 +1589,64 @@ const getTokenIcon = (symbol) => {
     'MASK': '🎭'
   }
   return icons[symbol] || '💎'
+}
+
+// 添加排序函数
+const sortTransactions = (key) => {
+  if (sortConfig.value.key === key) {
+    // 如果点击的是当前排序的列，则切换排序方向
+    sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
+  } else {
+    // 如果点击的是新列，则设置新的排序键和默认降序
+    sortConfig.value.key = key
+    sortConfig.value.direction = 'desc'
+  }
+
+  // 执行排序
+  transactions.value.sort((a, b) => {
+    let valueA, valueB
+
+    switch (key) {
+      case 'time':
+        valueA = a.block_ts
+        valueB = b.block_ts
+        break
+      case 'type':
+        valueA = a.from_address === address.value ? 'out' : 'in'
+        valueB = b.from_address === address.value ? 'out' : 'in'
+        break
+      case 'address':
+        valueA = a.from_address === address.value ? a.to_address : a.from_address
+        valueB = b.from_address === address.value ? b.to_address : b.from_address
+        break
+      case 'amount':
+        valueA = parseFloat(a.quant)
+        valueB = parseFloat(b.quant)
+        break
+      case 'status':
+        valueA = a.contractRet
+        valueB = b.contractRet
+        break
+      default:
+        return 0
+    }
+
+    if (valueA < valueB) {
+      return sortConfig.value.direction === 'asc' ? -1 : 1
+    }
+    if (valueA > valueB) {
+      return sortConfig.value.direction === 'asc' ? 1 : -1
+    }
+    return 0
+  })
+}
+
+// 获取排序图标
+const getSortIcon = (key) => {
+  if (sortConfig.value.key !== key) {
+    return '↕️'
+  }
+  return sortConfig.value.direction === 'asc' ? '↑' : '↓'
 }
 </script>
 
@@ -2181,111 +2253,281 @@ const getTokenIcon = (symbol) => {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   gap: 20px;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.9) 100%);
+  border-radius: 16px;
   font-weight: 600;
   color: #64748b;
-  margin-bottom: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.list-columns::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+  animation: shimmer 3s infinite;
+  z-index: 1;
+}
+
+.sortable {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  z-index: 2;
+}
+
+.sortable:hover {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+}
+
+.sortable::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  transition: all 0.4s ease;
+  transform: translateX(-50%);
+  border-radius: 3px;
+}
+
+.sortable:hover::after {
+  width: 90%;
 }
 
 .transaction-item {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
   gap: 20px;
-  padding: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 8px;
-  animation: itemFade 0.4s ease-out forwards;
+  padding: 20px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 16px;
+  animation: itemFade 0.6s ease-out forwards;
   opacity: 0;
   transform: translateX(-20px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%);
+  margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes itemFade {
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.transaction-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+  animation: shimmer 3s infinite;
+  z-index: 1;
 }
 
 .transaction-item:hover {
-  background-color: #f8fafc;
-  transform: translateX(4px) scale(1.01);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.98) 100%);
+  transform: translateX(8px) scale(1.02);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .tx-type, .tx-status {
   display: inline-block;
-  padding: 6px 16px;
-  border-radius: 20px;
+  padding: 8px 20px;
+  border-radius: 24px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
-  min-width: 80px;
+  min-width: 90px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(5px);
 }
 
 .tx-type.in {
-  background: rgba(76, 175, 80, 0.1);
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.25) 100%);
   color: #4caf50;
-  border: 1px solid rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  box-shadow: 0 4px 20px rgba(76, 175, 80, 0.15);
 }
 
 .tx-type.out {
-  background: rgba(244, 67, 54, 0.1);
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(244, 67, 54, 0.25) 100%);
   color: #f44336;
-  border: 1px solid rgba(244, 67, 54, 0.2);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  box-shadow: 0 4px 20px rgba(244, 67, 54, 0.15);
 }
 
 .tx-status.success {
-  background: rgba(76, 175, 80, 0.1);
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.25) 100%);
   color: #4caf50;
-  border: 1px solid rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  box-shadow: 0 4px 20px rgba(76, 175, 80, 0.15);
 }
 
 .tx-status.failed {
-  background: rgba(244, 67, 54, 0.1);
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(244, 67, 54, 0.25) 100%);
   color: #f44336;
-  border: 1px solid rgba(244, 67, 54, 0.2);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  box-shadow: 0 4px 20px rgba(244, 67, 54, 0.15);
 }
 
-.address-text {
-  font-family: monospace;
-  font-size: 14px;
-  color: #64748b;
-  word-break: break-all;
+.tx-type:hover, .tx-status:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .address-container {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(241, 245, 249, 0.3);
+  border-radius: 12px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.address-container:hover {
+  background: rgba(241, 245, 249, 0.5);
+  transform: translateX(8px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .copy-btn {
   background: none;
   border: none;
-  padding: 4px;
+  padding: 8px;
   cursor: pointer;
   color: #64748b;
-  transition: all 0.2s ease;
-  border-radius: 4px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .copy-btn:hover {
-  background: #f1f5f9;
+  background: rgba(59, 130, 246, 0.15);
   color: #3b82f6;
+  transform: scale(1.2);
 }
 
-.icon-copy {
-  width: 16px;
-  height: 16px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z'/%3E%3C/svg%3E") no-repeat center;
-  background-size: contain;
+.copy-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.4s ease;
+}
+
+.copy-btn:hover::after {
+  width: 120%;
+  height: 120%;
+  border-radius: 8px;
+}
+
+@keyframes itemFade {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.transaction-item:nth-child(odd) {
+  animation-delay: 0.1s;
+}
+
+.transaction-item:nth-child(even) {
+  animation-delay: 0.2s;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%);
+  padding: 20px 28px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.list-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+  animation: shimmer 3s infinite;
+  z-index: 1;
+}
+
+.list-stats {
+  color: #64748b;
+  font-size: 14px;
+  background: linear-gradient(135deg, rgba(241, 245, 249, 0.8) 0%, rgba(226, 232, 240, 0.9) 100%);
+  padding: 10px 20px;
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.list-stats:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
 .copy-toast {
@@ -2293,32 +2535,35 @@ const getTokenIcon = (symbol) => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 16px;
   z-index: 9999;
-  animation: toastFade 2s ease-out forwards;
+  animation: toastFade 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   pointer-events: none;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes toastFade {
   0% {
     opacity: 0;
-    transform: translate(-50%, -40%);
+    transform: translate(-50%, -40%) scale(0.9);
   }
   10% {
     opacity: 1;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(1);
   }
   90% {
     opacity: 1;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -60%);
+    transform: translate(-50%, -60%) scale(0.9);
   }
 }
 

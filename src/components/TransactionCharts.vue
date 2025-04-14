@@ -12,6 +12,9 @@
     <div class="chart-container">
       <div ref="outgoingPieChart" class="chart"></div>
     </div>
+    <div v-if="showToast" class="toast">
+      <span>地址已复制</span>
+    </div>
   </div>
 </template>
 
@@ -64,6 +67,19 @@ let chartInstances = {
   outgoingPie: null
 }
 
+const showToast = ref(false)
+let toastTimer = null
+
+const showCopyToast = () => {
+  showToast.value = true
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+  }
+  toastTimer = setTimeout(() => {
+    showToast.value = false
+  }, 2000)
+}
+
 const initCharts = () => {
   // 检查数据是否存在
   if (!props.transactions || props.transactions.length === 0 ||
@@ -83,6 +99,19 @@ const initCharts = () => {
     chartInstances.addressStats = echarts.init(addressStatsChart.value)
     const addressData = prepareAddressStatsData()
     chartInstances.addressStats.setOption(addressData)
+    
+    // 添加点击事件
+    chartInstances.addressStats.on('click', (params) => {
+      if (params.data && params.data.fullAddress) {
+        navigator.clipboard.writeText(params.data.fullAddress)
+          .then(() => {
+            showCopyToast()
+          })
+          .catch(err => {
+            console.error('复制失败:', err)
+          })
+      }
+    })
   }
 
   // 初始化转入饼图
@@ -97,6 +126,19 @@ const initCharts = () => {
     // 确保有数据才设置选项
     if (inData && inData.length > 0) {
       chartInstances.incomingPie.setOption(getPieChartOption(inData, '转入地址分布', true))
+      
+      // 添加点击事件
+      chartInstances.incomingPie.on('click', (params) => {
+        if (params.data && params.data.fullAddress) {
+          navigator.clipboard.writeText(params.data.fullAddress)
+            .then(() => {
+              showCopyToast()
+            })
+            .catch(err => {
+              console.error('复制失败:', err)
+            })
+        }
+      })
     }
   }
 
@@ -111,6 +153,19 @@ const initCharts = () => {
     // 确保有数据才设置选项
     if (outData && outData.length > 0) {
       chartInstances.outgoingPie.setOption(getPieChartOption(outData, '转出地址分布', false))
+      
+      // 添加点击事件
+      chartInstances.outgoingPie.on('click', (params) => {
+        if (params.data && params.data.fullAddress) {
+          navigator.clipboard.writeText(params.data.fullAddress)
+            .then(() => {
+              showCopyToast()
+            })
+            .catch(err => {
+              console.error('复制失败:', err)
+            })
+        }
+      })
     }
   }
 }
@@ -319,57 +374,86 @@ watch(() => props.addressStats, () => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
-  margin-bottom: 20px;
-  overflow-x: auto;
-  max-width: 100%;
-  padding: 10px;
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chart-container {
-  position: relative;
   width: 100%;
-  height: 400px;
-  padding: 20px;
+  height: 500px;
   background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .chart {
   width: 100%;
   height: 100%;
-  min-height: 350px;
 }
 
-@media (max-width: 1200px) {
+/* 移动端适配 */
+@media screen and (max-width: 1200px) {
   .charts-container {
     grid-template-columns: 1fr;
-  }
-
-  .chart-container {
-    height: 350px;
-  }
-
-  .chart {
-    min-height: 300px;
-  }
-}
-
-@media (max-width: 768px) {
-  .charts-container {
-    padding: 5px;
+    padding: 15px;
     gap: 15px;
   }
 
   .chart-container {
+    height: 400px;
     padding: 15px;
-    height: 300px;
+  }
+}
+
+/* 小屏幕适配 */
+@media screen and (max-width: 768px) {
+  .charts-container {
+    padding: 10px;
+    gap: 10px;
   }
 
-  .chart {
-    min-height: 250px;
+  .chart-container {
+    height: 300px;
+    padding: 10px;
+  }
+}
+
+/* 添加提示样式 */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 9999;
+  animation: fadeInOut 2s ease-in-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  90% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20px);
   }
 }
 </style> 

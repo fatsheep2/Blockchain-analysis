@@ -1875,6 +1875,10 @@ const getSortIcon = (key) => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
   animation: buttonFloat 2s infinite;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @keyframes buttonFloat {
@@ -2132,12 +2136,17 @@ const getSortIcon = (key) => {
 .token-details {
   display: flex;
   flex-direction: column;
+  max-width: 200px;
+  overflow: hidden;
 }
 
 .token-name {
   font-size: 16px;
   font-weight: 600;
   color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .token-symbol {
@@ -2148,6 +2157,10 @@ const getSortIcon = (key) => {
   border-radius: 4px;
   display: inline-block;
   margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .token-balance {
@@ -2186,77 +2199,39 @@ const getSortIcon = (key) => {
 }
 
 .chart-container {
+  position: relative;
   width: 100%;
   height: 400px;
-  margin: 20px 0;
-  position: relative;
   overflow: hidden;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.pie-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
 }
 
 @media screen and (max-width: 768px) {
   .chart-container {
+    height: 350px;
+    padding: 15px;
+  }
+  
+  .pie-chart {
+    min-height: 250px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .chart-container {
     height: 300px;
-    margin: 12px 0;
-    padding: 0;
+    padding: 10px;
   }
-
-  .chart-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-    margin: 0;
-    padding: 0;
-  }
-
-  .chart-item {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
-  /* 优化交易记录显示 */
-  .transaction-list {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .list-columns {
-    display: none; /* 在移动端隐藏表头 */
-  }
-
-  .transaction-item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.3);
-  }
-
-  .tx-type, .tx-status {
-    width: 100%;
-    text-align: center;
-  }
-
-  .address-container {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* 优化钱包余额显示 */
-  .wallet-balance {
-    width: 100%;
-    padding: 12px;
-  }
-
-  .token-list {
-    width: 100%;
-  }
-
-  .token-item {
-    width: 100%;
-    margin-bottom: 8px;
+  
+  .pie-chart {
+    min-height: 200px;
   }
 }
 
@@ -2681,44 +2656,48 @@ const getSortIcon = (key) => {
   .transaction-list {
     padding: 12px;
     margin-top: 15px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .list-header {
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+  .list-content {
+    min-width: 600px;
   }
 
-  .list-header h3 {
-    font-size: 16px;
+  .list-columns {
+    display: grid;
+    grid-template-columns: 120px 80px 180px 100px 80px;
+    gap: 10px;
+    padding: 10px;
+    font-size: 12px;
   }
 
   .transaction-item {
-    padding: 12px;
+    display: grid;
+    grid-template-columns: 120px 80px 180px 100px 80px;
+    gap: 10px;
+    padding: 10px;
     margin-bottom: 8px;
-    gap: 6px;
-  }
-
-  .transaction-item .col {
-    padding: 6px 0;
-    font-size: 13px;
-  }
-
-  .transaction-item .col:before {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .tx-type, .tx-status {
-    min-width: 50px;
-    padding: 3px 10px;
-    font-size: 12px;
-  }
-
-  .sub-info {
+    min-width: 60px;
+    padding: 4px 8px;
     font-size: 11px;
   }
 
+  .address-container {
+    padding: 6px 8px;
+  }
+
   .address-text {
-    font-size: 12px;
+    font-size: 11px;
+    word-break: break-all;
+  }
+
+  .copy-btn {
+    padding: 4px;
   }
 
   .screenshot-btn {
@@ -2726,6 +2705,7 @@ const getSortIcon = (key) => {
     right: 10px;
     padding: 6px 12px;
     font-size: 12px;
+    max-width: 100px;
   }
 
   .screenshot-options {
@@ -2798,46 +2778,45 @@ const getSortIcon = (key) => {
   }
 
   .transaction-list {
-    padding: 10px;
+    padding: 8px;
     margin-top: 12px;
   }
 
-  .list-header {
-    margin-bottom: 10px;
-    padding-bottom: 6px;
+  .list-content {
+    min-width: 500px;
   }
 
-  .list-header h3 {
-    font-size: 15px;
+  .list-columns {
+    grid-template-columns: 100px 70px 150px 90px 70px;
+    gap: 8px;
+    padding: 8px;
+    font-size: 11px;
   }
 
   .transaction-item {
-    padding: 10px;
+    grid-template-columns: 100px 70px 150px 90px 70px;
+    gap: 8px;
+    padding: 8px;
     margin-bottom: 6px;
-    gap: 4px;
-  }
-
-  .transaction-item .col {
-    padding: 4px 0;
-    font-size: 12px;
-  }
-
-  .transaction-item .col:before {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .tx-type, .tx-status {
-    min-width: 45px;
-    padding: 2px 8px;
-    font-size: 11px;
-  }
-
-  .sub-info {
+    min-width: 50px;
+    padding: 3px 6px;
     font-size: 10px;
   }
 
+  .address-container {
+    padding: 4px 6px;
+  }
+
   .address-text {
-    font-size: 11px;
+    font-size: 10px;
+  }
+
+  .copy-btn {
+    padding: 3px;
   }
 
   .screenshot-btn {
@@ -2845,6 +2824,7 @@ const getSortIcon = (key) => {
     right: 5px;
     padding: 4px 8px;
     font-size: 11px;
+    max-width: 80px;
   }
 
   .screenshot-options {

@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
@@ -8,22 +8,57 @@ module.exports = {
     extend: {
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
-        'fade-in-down': 'fadeInDown 0.3s ease-out',
-        'fade-in-up': 'fadeInUp 0.3s ease-out',
+        'fade-in-up': 'fadeInUp 0.5s ease-out',
+        'fade-in-down': 'fadeInDown 0.5s ease-out',
+        'slide-in-right': 'slideInRight 0.5s ease-out',
+        'slide-in-left': 'slideInLeft 0.5s ease-out',
+        'bounce-in': 'bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'scale-in': 'scaleIn 0.5s ease-out',
+        'rotate-in': 'rotateIn 0.6s ease-out',
+        'shimmer': 'shimmer 3s infinite',
       },
       keyframes: {
         fadeIn: {
-          'from': { opacity: '0', transform: 'translateY(20px)' },
-          'to': { opacity: '1', transform: 'translateY(0)' },
-        },
-        fadeInDown: {
-          'from': { opacity: '0', transform: 'translate(-50%, -20px)' },
-          'to': { opacity: '1', transform: 'translate(-50%, 0)' },
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
         fadeInUp: {
-          'from': { opacity: '0', transform: 'translate(-50%, 20px)' },
-          'to': { opacity: '1', transform: 'translate(-50%, 0)' },
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        fadeInDown: {
+          '0%': { opacity: '0', transform: 'translateY(-20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInRight: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        slideInLeft: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        bounceIn: {
+          '0%': { transform: 'scale(0.3)', opacity: '0' },
+          '50%': { transform: 'scale(1.05)' },
+          '70%': { transform: 'scale(0.9)' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        rotateIn: {
+          '0%': { transform: 'rotate(-180deg)', opacity: '0' },
+          '100%': { transform: 'rotate(0)', opacity: '1' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
+      backdropBlur: {
+        xs: '2px',
       },
     },
   },

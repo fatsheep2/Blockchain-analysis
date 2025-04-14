@@ -1,8 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 min-h-screen;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold shadow-lg 
+           hover:bg-blue-50 active:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed
+           transform transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-white/20 backdrop-blur text-white px-6 py-3 rounded-lg font-semibold
+           hover:bg-white/30 active:bg-white/40 
+           transform transition-all duration-200
+           border border-white/30;
+  }
+}
+
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
+  @apply text-gray-900;
   margin-top: 60px;
 }

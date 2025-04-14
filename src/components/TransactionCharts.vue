@@ -1,26 +1,33 @@
 <template>
   <div class="charts-container">
-    <div class="chart-wrapper">
-      <div class="chart-box">
-        <div ref="transactionChart" class="chart"></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+      <div class="chart-card">
+        <h3 class="text-xl font-semibold mb-4">交易金额分布</h3>
+        <div ref="transactionChart" class="chart-container h-[400px]"></div>
       </div>
-      <div class="chart-box">
-        <div ref="addressStatsChart" class="chart"></div>
+      
+      <div class="chart-card">
+        <h3 class="text-xl font-semibold mb-4">地址统计</h3>
+        <div ref="addressStatsChart" class="chart-container h-[400px]"></div>
       </div>
-      <div class="chart-box">
-        <div ref="incomingPieChart" class="chart"></div>
+
+      <div class="chart-card">
+        <h3 class="text-xl font-semibold mb-4">转入地址分布</h3>
+        <div ref="incomingPieChart" class="chart-container h-[400px]"></div>
       </div>
-      <div class="chart-box">
-        <div ref="outgoingPieChart" class="chart"></div>
+
+      <div class="chart-card">
+        <h3 class="text-xl font-semibold mb-4">转出地址分布</h3>
+        <div ref="outgoingPieChart" class="chart-container h-[400px]"></div>
       </div>
     </div>
-    <!-- Toast 提示 -->
-    <Transition name="fade">
-      <div v-if="showToast" class="toast-message">
-        <span>地址已复制</span>
-      </div>
-    </Transition>
   </div>
+  <!-- Toast 提示 -->
+  <Transition name="fade">
+    <div v-if="showToast" class="toast-message">
+      <span>地址已复制</span>
+    </div>
+  </Transition>
 </template>
 
 <script setup>
@@ -34,7 +41,6 @@ import {
   LegendComponent
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { getTransactionChartOption, getPieChartOption } from '../utils/chartOptions'
 import { formatAddress } from '../utils/formatter'
 
 // 注册必要的组件
@@ -52,11 +58,14 @@ echarts.use([
 const props = defineProps({
   transactions: {
     type: Array,
-    required: true
+    default: () => []
   },
   addressStats: {
     type: Object,
-    required: true
+    default: () => ({
+      in: {},
+      out: {}
+    })
   }
 })
 
@@ -76,42 +85,78 @@ const showToast = ref(false)
 let toastTimer = null
 
 const showCopyToast = () => {
-  // 清除之前的定时器
   if (toastTimer) {
     clearTimeout(toastTimer)
   }
-  
-  // 显示提示
   showToast.value = true
-  
-  // 2秒后自动隐藏
   toastTimer = setTimeout(() => {
     showToast.value = false
   }, 2000)
 }
 
 const initCharts = () => {
-  // 检查数据是否存在
   if (!props.transactions || props.transactions.length === 0) {
     console.log('图表数据不足，无法渲染')
     return
   }
 
-  // 使用 nextTick 确保 DOM 已更新
   nextTick(() => {
-    // 初始化交易趋势图
+    // 初始化交易金额趋势图
     if (transactionChart.value) {
-      console.log('初始化交易趋势图')
       if (chartInstances.transaction) {
         chartInstances.transaction.dispose()
       }
       chartInstances.transaction = echarts.init(transactionChart.value)
-      chartInstances.transaction.setOption(getTransactionChartOption(props.transactions))
+      const option = {
+        title: {
+          text: '交易金额趋势',
+          left: 'center'
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'cross'
+          }
+        },
+        xAxis: {
+          type: 'category',
+          data: props.transactions
+            .sort((a, b) => new Date(a.block_ts) - new Date(b.block_ts))
+            .map(tx => new Date(tx.block_ts).toLocaleDateString())
+        },
+        yAxis: {
+          type: 'value',
+          name: 'USDT'
+        },
+        series: [{
+          data: props.transactions
+            .sort((a, b) => new Date(a.block_ts) - new Date(b.block_ts))
+            .map(tx => parseFloat(tx.quant) / 1e6),
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 8,
+          lineStyle: {
+            width: 3,
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: '#83bff6' },
+              { offset: 0.5, color: '#188df0' },
+              { offset: 1, color: '#188df0' }
+            ])
+          },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(24, 141, 240, 0.3)' },
+              { offset: 1, color: 'rgba(24, 141, 240, 0.1)' }
+            ])
+          }
+        }]
+      }
+      chartInstances.transaction.setOption(option)
     }
 
     // 初始化地址统计图
     if (addressStatsChart.value && props.addressStats) {
-      console.log('初始化地址统计图')
       if (chartInstances.addressStats) {
         chartInstances.addressStats.dispose()
       }
@@ -119,23 +164,17 @@ const initCharts = () => {
       const addressData = prepareAddressStatsData()
       chartInstances.addressStats.setOption(addressData)
       
-      // 添加点击事件
       chartInstances.addressStats.on('click', (params) => {
         if (params.data && params.data.fullAddress) {
           navigator.clipboard.writeText(params.data.fullAddress)
-            .then(() => {
-              showCopyToast()
-            })
-            .catch(err => {
-              console.error('复制失败:', err)
-            })
+            .then(() => showCopyToast())
+            .catch(err => console.error('复制失败:', err))
         }
       })
     }
 
     // 初始化转入饼图
-    if (incomingPieChart.value && props.addressStats && props.addressStats.in) {
-      console.log('初始化转入饼图')
+    if (incomingPieChart.value && props.addressStats.in) {
       if (chartInstances.incomingPie) {
         chartInstances.incomingPie.dispose()
       }
@@ -143,25 +182,59 @@ const initCharts = () => {
       const inData = prepareIncomingPieData()
       
       if (inData && inData.length > 0) {
-        chartInstances.incomingPie.setOption(getPieChartOption(inData, '转入地址分布', true))
+        const option = {
+          title: {
+            text: '转入地址分布',
+            left: 'center'
+          },
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}: {c} USDT ({d}%)'
+          },
+          legend: {
+            orient: 'vertical',
+            left: 'left',
+            top: 'middle'
+          },
+          series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+              borderRadius: 10,
+              borderColor: '#fff',
+              borderWidth: 2
+            },
+            label: {
+              show: false
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: '16',
+                fontWeight: 'bold'
+              }
+            },
+            labelLine: {
+              show: false
+            },
+            data: inData
+          }]
+        }
+        chartInstances.incomingPie.setOption(option)
         
         chartInstances.incomingPie.on('click', (params) => {
           if (params.data && params.data.fullAddress) {
             navigator.clipboard.writeText(params.data.fullAddress)
-              .then(() => {
-                showCopyToast()
-              })
-              .catch(err => {
-                console.error('复制失败:', err)
-              })
+              .then(() => showCopyToast())
+              .catch(err => console.error('复制失败:', err))
           }
         })
       }
     }
 
     // 初始化转出饼图
-    if (outgoingPieChart.value && props.addressStats && props.addressStats.out) {
-      console.log('初始化转出饼图')
+    if (outgoingPieChart.value && props.addressStats.out) {
       if (chartInstances.outgoingPie) {
         chartInstances.outgoingPie.dispose()
       }
@@ -169,17 +242,52 @@ const initCharts = () => {
       const outData = prepareOutgoingPieData()
       
       if (outData && outData.length > 0) {
-        chartInstances.outgoingPie.setOption(getPieChartOption(outData, '转出地址分布', false))
+        const option = {
+          title: {
+            text: '转出地址分布',
+            left: 'center'
+          },
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}: {c} USDT ({d}%)'
+          },
+          legend: {
+            orient: 'vertical',
+            left: 'left',
+            top: 'middle'
+          },
+          series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+              borderRadius: 10,
+              borderColor: '#fff',
+              borderWidth: 2
+            },
+            label: {
+              show: false
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: '16',
+                fontWeight: 'bold'
+              }
+            },
+            labelLine: {
+              show: false
+            },
+            data: outData
+          }]
+        }
+        chartInstances.outgoingPie.setOption(option)
         
         chartInstances.outgoingPie.on('click', (params) => {
           if (params.data && params.data.fullAddress) {
             navigator.clipboard.writeText(params.data.fullAddress)
-              .then(() => {
-                showCopyToast()
-              })
-              .catch(err => {
-                console.error('复制失败:', err)
-              })
+              .then(() => showCopyToast())
+              .catch(err => console.error('复制失败:', err))
           }
         })
       }
@@ -188,15 +296,12 @@ const initCharts = () => {
 }
 
 const prepareAddressStatsData = () => {
-  // 检查数据完整性
   if (!props.addressStats || !props.addressStats.in || !props.addressStats.out) {
-    console.warn('地址统计数据不完整:', props.addressStats)
     return {}
   }
 
   const addressData = {}
   
-  // 处理转入数据
   Object.entries(props.addressStats.in || {}).forEach(([addr, amount]) => {
     addressData[addr] = {
       in: amount,
@@ -205,7 +310,6 @@ const prepareAddressStatsData = () => {
     }
   })
   
-  // 处理转出数据
   Object.entries(props.addressStats.out || {}).forEach(([addr, amount]) => {
     if (addressData[addr]) {
       addressData[addr].out = amount
@@ -219,12 +323,10 @@ const prepareAddressStatsData = () => {
     }
   })
   
-  // 按照总交易量排序
   const sortedAddresses = Object.entries(addressData)
     .sort(([, a], [, b]) => b.total - a.total)
     .slice(0, 10)
   
-  // 准备图表数据
   const data = sortedAddresses.map(([addr, data]) => ({
     name: formatAddress(addr),
     fullAddress: addr,
@@ -235,30 +337,15 @@ const prepareAddressStatsData = () => {
     outValue: data.out
   }))
 
-  console.log('处理后的地址统计数据:', data)
-
   return {
     title: {
       text: '交易地址统计',
-      textStyle: {
-        color: '#333',
-        fontSize: 18,
-        fontWeight: 'normal'
-      },
-      left: 'center',
-      top: 20
+      left: 'center'
     },
     tooltip: {
       trigger: 'axis',
       axisPointer: {
         type: 'shadow'
-      },
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#ddd',
-      borderWidth: 1,
-      textStyle: {
-        color: '#333',
-        fontSize: 14
       },
       formatter: function(params) {
         const data = params[0].data
@@ -269,39 +356,18 @@ const prepareAddressStatsData = () => {
       }
     },
     grid: {
-      left: '20%',
-      right: '5%',
-      bottom: '10%',
-      top: '15%',
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
       containLabel: true
     },
     xAxis: {
       type: 'value',
-      name: 'USDT',
-      nameTextStyle: {
-        color: '#666',
-        fontSize: 12,
-        padding: [0, 0, 0, 20]
-      },
-      axisLabel: {
-        color: '#666',
-        fontSize: 12,
-        margin: 14
-      }
+      name: 'USDT'
     },
     yAxis: {
       type: 'category',
-      data: data.map(item => item.name),
-      axisLine: {
-        lineStyle: {
-          color: '#ddd'
-        }
-      },
-      axisLabel: {
-        color: '#666',
-        fontSize: 12,
-        margin: 20
-      }
+      data: data.map(item => item.name)
     },
     series: [{
       name: '交易总额',
@@ -311,18 +377,14 @@ const prepareAddressStatsData = () => {
         color: function(params) {
           const data = params.data
           const inPercentage = parseFloat(data.inPercentage)
-          const outPercentage = parseFloat(data.outPercentage)
-          
           return new echarts.graphic.LinearGradient(0, 0, 1, 0, [
             { offset: 0, color: '#4caf50' },
             { offset: inPercentage / 100, color: '#4caf50' },
             { offset: inPercentage / 100, color: '#f44336' },
             { offset: 1, color: '#f44336' }
           ])
-        },
-        borderRadius: [0, 4, 4, 0]
-      },
-      barWidth: '40%'
+        }
+      }
     }]
   }
 }
@@ -343,6 +405,10 @@ const prepareIncomingPieData = () => {
 }
 
 const prepareOutgoingPieData = () => {
+  if (!props.addressStats || !props.addressStats.out) {
+    return []
+  }
+
   return Object.entries(props.addressStats.out)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 10)
@@ -362,11 +428,8 @@ const handleResize = () => {
 }
 
 onMounted(() => {
-  // 等待一帧以确保 DOM 已完全加载
-  window.requestAnimationFrame(() => {
-    initCharts()
-    window.addEventListener('resize', handleResize)
-  })
+  window.addEventListener('resize', handleResize)
+  initCharts()
 })
 
 onBeforeUnmount(() => {
@@ -379,14 +442,12 @@ onBeforeUnmount(() => {
 })
 
 watch(() => props.transactions, () => {
-  console.log('交易数据变化:', props.transactions)
   nextTick(() => {
     initCharts()
   })
 }, { deep: true })
 
 watch(() => props.addressStats, () => {
-  console.log('地址统计变化:', props.addressStats)
   nextTick(() => {
     initCharts()
   })
@@ -398,73 +459,26 @@ watch(() => props.addressStats, () => {
   @apply w-full p-4;
 }
 
-.chart-wrapper {
-  @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+.chart-card {
+  @apply bg-white rounded-xl shadow-lg p-6;
 }
 
-.chart-box {
-  @apply bg-white rounded-xl shadow-lg p-6 min-h-[500px];
-  height: calc(100vh - 400px);
-  min-height: 500px;
-  max-height: 800px;
+.chart-container {
+  @apply w-full;
 }
 
-.chart {
-  @apply w-full h-full;
-}
-
-/* Toast 样式 */
 .toast-message {
-  @apply fixed top-5 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50;
+  @apply fixed top-5 left-1/2 transform -translate-x-1/2 
+         bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50;
 }
 
-/* 过渡动画 */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  @apply transition-all duration-300 ease-out;
 }
 
 .fade-enter-from,
 .fade-leave-to {
-  opacity: 0;
-  transform: translate(-50%, -20px);
-}
-
-.fade-enter-to,
-.fade-leave-from {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-/* 平板电脑布局 */
-@media screen and (max-width: 1200px) {
-  .chart-wrapper {
-    @apply grid-cols-1 gap-4;
-  }
-
-  .chart-box {
-    @apply p-4 min-h-[400px];
-    height: calc(100vh - 300px);
-    min-height: 400px;
-    max-height: 600px;
-  }
-}
-
-/* 手机布局 */
-@media screen and (max-width: 768px) {
-  .charts-container {
-    @apply p-2;
-  }
-
-  .chart-wrapper {
-    @apply gap-3;
-  }
-
-  .chart-box {
-    @apply p-3 min-h-[300px];
-    height: calc(100vh - 200px);
-    min-height: 300px;
-    max-height: 400px;
-  }
+  @apply opacity-0 -translate-y-4;
 }
 </style> 

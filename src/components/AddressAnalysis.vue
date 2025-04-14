@@ -1,49 +1,51 @@
 <template>
-  <div class="address-analysis animate-fade-in">
-    <!-- 头部区域 -->
-    <AddressHeader
-      v-model:address="address"
-      :loading="loading"
-      :address-type="addressType"
-      :show-screenshot="!!analysisResult"
-      :show-options="showOptions"
-      @search="analyzeAddress"
-      @screenshot-click="showScreenshotOptions"
-      @capture="captureScreenshot"
-    />
+  <div class="animate-fade-in">
+    <div class="hero-section animate-slide-in-left">
+      <AddressHeader
+        v-model:address="address"
+        :loading="loading"
+        :address-type="addressType"
+        :show-screenshot="!!analysisResult"
+        :show-options="showOptions"
+        @search="analyzeAddress"
+        @screenshot-click="showScreenshotOptions"
+        @capture="captureScreenshot"
+      />
+    </div>
 
-    <!-- 加载和错误提示 -->
-    <LoadingError 
-      :loading="loading"
-      :error="error"
-    />
-
-    <!-- 分析结果区域 -->
-    <div v-if="analysisResult" class="analysis-content animate-fade-in">
-        <!-- 地址总结卡片 -->
-        <AddressSummary :data="analysisResult" />
-
-        <!-- 分享按钮 -->
-        <button @click="shareAnalysis" class="share-button">分享</button>
-
-        <!-- 钱包余额 -->
-        <WalletBalance
+    <div v-if="loading" class="animate-bounce-in">
+      <LoadingError :loading="true" />
+    </div>
+    <div v-else-if="error" class="animate-fade-in">
+      <LoadingError :error="error" />
+    </div>
+    <div v-else class="analysis-results">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="animate-slide-in-left [animation-delay:200ms]">
+          <AddressSummary :data="analysisResult" />
+        </div>
+        <div class="animate-slide-in-right [animation-delay:200ms]">
+          <WalletBalance
             :tokens="tokenBalances"
             :total-value="totalWalletValue"
-        />
-
-        <!-- 交易图表 -->
+          />
+        </div>
+      </div>
+      
+      <div class="mt-8 animate-fade-in-up [animation-delay:400ms]">
         <TransactionCharts
-            :transactions="transactions"
-            :address-stats="addressStats"
+          :transactions="transactions"
+          :address-stats="addressStats"
         />
-
-        <!-- 交易列表 -->
+      </div>
+      
+      <div class="mt-8 animate-fade-in-up [animation-delay:600ms]">
         <TransactionList
-            :transactions="transactions"
-            :user-address="address"
-            @copy-address="copyToClipboard"
+          :transactions="transactions"
+          :user-address="address"
+          @copy-address="copyToClipboard"
         />
+      </div>
     </div>
   </div>
 </template>

@@ -15,9 +15,11 @@
       </div>
     </div>
     <!-- Toast 提示 -->
-    <div v-if="showToast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-down">
-      <span>地址已复制</span>
-    </div>
+    <Transition name="fade">
+      <div v-if="showToast" class="toast-message">
+        <span>地址已复制</span>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -74,10 +76,15 @@ const showToast = ref(false)
 let toastTimer = null
 
 const showCopyToast = () => {
-  showToast.value = true
+  // 清除之前的定时器
   if (toastTimer) {
     clearTimeout(toastTimer)
   }
+  
+  // 显示提示
+  showToast.value = true
+  
+  // 2秒后自动隐藏
   toastTimer = setTimeout(() => {
     showToast.value = false
   }, 2000)
@@ -404,6 +411,29 @@ watch(() => props.addressStats, () => {
 
 .chart {
   @apply w-full h-full;
+}
+
+/* Toast 样式 */
+.toast-message {
+  @apply fixed top-5 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50;
+}
+
+/* 过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -20px);
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 /* 平板电脑布局 */

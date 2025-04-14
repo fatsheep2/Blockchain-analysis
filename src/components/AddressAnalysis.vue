@@ -3,6 +3,13 @@
     <div class="hero-section">
       <h1>波场区块链地址分析</h1>
       <p>输入地址即可查看详细分析报告</p>
+      <button v-if="analysisResult" class="screenshot-btn" @click="showScreenshotOptions">
+        📸 生成分析报告
+      </button>
+      <div v-if="showOptions" class="screenshot-options">
+        <button @click="captureScreenshot('clipboard')">复制到剪贴板</button>
+        <button @click="captureScreenshot('download')">保存到本地</button>
+      </div>
     </div>
 
     <div class="search-section">
@@ -1228,7 +1235,7 @@ const showScreenshotOptions = () => {
 const captureScreenshot = async (type) => {
   try {
     // 获取整个页面内容
-    const element = document.documentElement
+    const element = document.querySelector('.address-analysis')
     if (!element) return
 
     // 显示加载提示
@@ -1252,108 +1259,11 @@ const captureScreenshot = async (type) => {
         // 确保克隆的文档中包含所有样式
         const style = clonedDoc.createElement('style')
         style.textContent = `
-          html, body {
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-          }
           .address-analysis {
             background-color: #f8fafc;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             min-height: 100vh;
             padding: 20px;
-          }
-          .hero-section {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 60px 20px;
-            background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
-            border-radius: 16px;
-            color: white;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-          }
-          .hero-section h1 {
-            font-size: 2.5em;
-            margin: 0;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-          }
-          .hero-section p {
-            font-size: 1.2em;
-            margin: 10px 0 0;
-            opacity: 0.9;
-          }
-          .search-section {
-            margin-bottom: 30px;
-          }
-          .search-container {
-            max-width: 800px;
-            margin: 0 auto;
-          }
-          .input-group {
-            display: flex;
-            gap: 10px;
-            background: white;
-            padding: 4px;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-          }
-          .result-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-            max-width: 1400px;
-            margin-left: auto;
-            margin-right: auto;
-          }
-          .result-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            min-width: 240px;
-            overflow: visible;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          }
-          .result-card h3 {
-            font-size: 16px;
-            color: #64748b;
-            margin-bottom: 12px;
-            white-space: normal;
-            overflow: visible;
-          }
-          .result-card p {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1e293b;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 12px;
-            text-align: center;
-            white-space: normal;
-            overflow: visible;
-            word-break: break-word;
-            min-height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .chart-container {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-          }
-          .transaction-list {
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
           }
           .screenshot-btn, .screenshot-options {
             display: none;
@@ -1394,7 +1304,10 @@ const captureScreenshot = async (type) => {
   } catch (error) {
     console.error('截图失败:', error)
     alert('截图失败，请重试')
-    document.body.removeChild(loading)
+    const loading = document.querySelector('.screenshot-loading')
+    if (loading) {
+      document.body.removeChild(loading)
+    }
     showOptions.value = false
   }
 }
@@ -2579,6 +2492,119 @@ const getSortIcon = (key) => {
   .result-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 12px;
+  }
+}
+
+.screenshot-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.screenshot-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.screenshot-options {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.screenshot-options button {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  color: #1e293b;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.screenshot-options button:hover {
+  background: #f1f5f9;
+  color: #3b82f6;
+}
+
+.screenshot-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  z-index: 9999;
+}
+
+.copy-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 9999;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 768px) {
+  .screenshot-btn {
+    position: static;
+    margin: 20px auto 0;
+    width: fit-content;
+  }
+
+  .screenshot-options {
+    position: fixed;
+    top: auto;
+    bottom: 20px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
   }
 }
 </style>

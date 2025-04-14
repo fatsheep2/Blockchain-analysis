@@ -1,2 +1,7 @@
 ignoredBuiltDependencies:
   - esbuild
+
+packages:
+  - '.'
+  - 'src'
+  - 'public'

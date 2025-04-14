@@ -35,8 +35,18 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
     
+    - name: Debug workspace
+      run: |
+        echo "Current directory: $(pwd)"
+        echo "Directory contents:"
+        ls -la
+        echo "pnpm-workspace.yaml contents:"
+        cat pnpm-workspace.yaml
+    
     - name: Install Dependencies
-      run: pnpm install --frozen-lockfile
+      run: |
+        pnpm config set store-dir ${{ env.STORE_PATH }}
+        pnpm install --frozen-lockfile
     
     - name: Build
       run: pnpm run build

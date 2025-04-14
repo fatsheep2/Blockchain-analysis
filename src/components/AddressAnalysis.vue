@@ -2201,42 +2201,37 @@ const getSortIcon = (key) => {
 }
 
 .transaction-list {
-  background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  margin-top: 30px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  overflow-x: auto;
-  max-width: 100%;
+  width: 100%;
+  padding: 16px;
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .list-content {
+  width: 100%;
   min-width: 800px;
+  overflow-x: auto;
 }
 
 .list-columns {
   display: grid;
-  grid-template-columns: 160px 100px 240px 140px 100px;
+  grid-template-columns: 180px 100px minmax(200px, 1fr) 150px 100px;
   gap: 12px;
   padding: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  background: #f8fafc;
-  border-radius: 12px;
-  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 12px;
 }
 
 .transaction-item {
   display: grid;
-  grid-template-columns: 160px 100px 240px 140px 100px;
+  grid-template-columns: 180px 100px minmax(200px, 1fr) 150px 100px;
   gap: 12px;
   padding: 12px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  align-items: center;
   transition: all 0.3s ease;
 }
 
@@ -2402,98 +2397,78 @@ const getSortIcon = (key) => {
   .address-text {
     font-size: 11px;
   }
+
+  .list-columns {
+    grid-template-columns: 140px 80px minmax(160px, 1fr) 120px 80px;
+  }
+
+  .transaction-item {
+    grid-template-columns: 140px 80px minmax(160px, 1fr) 120px 80px;
+  }
 }
 
 @media (max-width: 480px) {
-  .wallet-balance {
-    padding: 8px;
-    margin-bottom: 12px;
-  }
-
   .token-list {
-    min-width: 450px;
+    min-width: auto;
+    width: 100%;
   }
 
   .token-item {
     padding: 8px;
-    gap: 6px;
-    min-width: 400px;
+    gap: 8px;
+    min-width: auto;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
   }
 
   .token-info {
-    min-width: 180px;
-    max-width: 220px;
+    min-width: 0;
+    max-width: 50%;
+    flex: 1;
   }
 
   .token-icon {
     width: 32px;
     height: 32px;
     font-size: 16px;
+    flex-shrink: 0;
   }
 
   .token-details {
-    max-width: 120px;
+    max-width: calc(100% - 40px);
+    min-width: 0;
   }
 
   .token-name {
     font-size: 13px;
-  }
-
-  .token-symbol {
-    font-size: 11px;
-    padding: 1px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .token-balance {
-    min-width: 120px;
-    max-width: 180px;
+    min-width: 0;
+    max-width: 50%;
+    flex: 1;
+    text-align: right;
   }
 
   .token-balance .amount {
     font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .token-balance .usdt-value {
     font-size: 11px;
+    justify-content: flex-end;
   }
 
-  .chart-container {
-    height: 300px;
-    padding: 10px;
-  }
-
-  .pie-chart {
-    min-height: 250px;
-  }
-
-  .transaction-list {
-    padding: 8px;
-    margin-top: 12px;
-  }
-
-  .list-content {
-    min-width: 600px;
-  }
-
-  .list-columns {
-    grid-template-columns: 120px 70px 180px 100px 70px;
-  }
-
-  .transaction-item {
-    grid-template-columns: 120px 70px 180px 100px 70px;
-  }
-
-  .tx-type, .tx-status {
-    padding: 2px 6px;
-    font-size: 10px;
-  }
-
-  .address-container {
-    padding: 4px;
-  }
-
-  .address-text {
-    font-size: 10px;
+  .wallet-balance {
+    padding: 12px;
+    overflow-x: hidden;
   }
 }
 </style>

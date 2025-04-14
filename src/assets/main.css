@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义样式 */
+@layer components {
+  .chart-container {
+    @apply w-full h-[500px] bg-white rounded-xl shadow-lg p-5;
+  }
+  
+  .chart {
+    @apply w-full h-full;
+  }
+  
+  .toast {
+    @apply fixed top-5 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50;
+  }
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .chart-container {
+    @apply h-[300px] p-3;
+  }
+} 

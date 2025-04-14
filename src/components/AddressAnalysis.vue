@@ -1,5 +1,5 @@
-51<template>
-  <div class="address-analysis">
+<template>
+  <div class="address-analysis animate-fade-in">
     <!-- 头部区域 -->
     <AddressHeader
       v-model:address="address"
@@ -19,7 +19,7 @@
     />
 
     <!-- 分析结果区域 -->
-    <div v-if="analysisResult" class="analysis-content">
+    <div v-if="analysisResult" class="analysis-content animate-fade-in">
         <!-- 地址总结卡片 -->
         <AddressSummary :data="analysisResult" />
 
@@ -240,7 +240,9 @@ const analyzeAddress = async () => {
 
         // 计算转入转出统计
         const { totalIn, totalOut, addressStats: stats } = calculateInOutValues(transactions.value, address.value)
+        addressStats.value = { in: {}, out: {} }  // 先重置
         addressStats.value = stats
+        console.log('地址统计:', addressStats.value)
 
         // 计算分析结果
         const totalTransactions = transactions.value.length
@@ -431,22 +433,6 @@ const shareAnalysis = () => {
 <style scoped>
 .address-analysis {
   @apply p-5 bg-gray-100 min-h-screen font-sans;
-  @apply animate__animated animate__fadeIn;
-}
-
-.analysis-content {
-  @apply animate__animated animate__fadeIn;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .share-button {
@@ -459,43 +445,11 @@ const shareAnalysis = () => {
 
 /* 复制提示样式 */
 :global(.copy-toast) {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  z-index: 9999;
-  animation: fadeInUp 0.3s ease-out;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 20px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
+  @apply fixed bottom-5 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-up;
 }
 
 /* 截图加载样式 */
 :global(.screenshot-loading) {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 18px;
-  z-index: 9999;
+  @apply fixed inset-0 bg-black/80 flex items-center justify-center text-white text-lg z-50;
 }
 </style>

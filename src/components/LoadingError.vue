@@ -1,10 +1,10 @@
 <template>
-  <div v-if="loading" class="loading">
+  <div v-if="loading" class="loading animate-fade-in">
     <div class="spinner"></div>
     <p>{{ loadingText || '正在分析中...' }}</p>
   </div>
 
-  <div v-if="error" class="error">
+  <div v-if="error" class="error animate-fade-in">
     {{ error }}
   </div>
 </template>
@@ -28,61 +28,14 @@ defineProps({
 
 <style scoped>
 .loading {
-  text-align: center;
-  padding: 40px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-  animation: loadingPulse 1.5s infinite;
-  margin: 20px 0;
-}
-
-@keyframes loadingPulse {
-  0% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.6;
-  }
+  @apply fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #3b82f6;
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 12px;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.loading p {
-  margin: 0;
-  color: #1e293b;
-  font-size: 16px;
+  @apply w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin;
 }
 
 .error {
-  text-align: center;
-  padding: 24px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-  margin: 20px 0;
-  color: #ef4444;
-  font-size: 16px;
-  border-left: 4px solid #ef4444;
+  @apply fixed top-5 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg;
 }
 </style>

@@ -1,18 +1,21 @@
 <template>
   <div class="charts-container">
-    <div class="chart-container">
-      <div ref="transactionChart" class="chart"></div>
+    <div class="chart-wrapper">
+      <div class="chart-box">
+        <div ref="transactionChart" class="chart"></div>
+      </div>
+      <div class="chart-box">
+        <div ref="addressStatsChart" class="chart"></div>
+      </div>
+      <div class="chart-box">
+        <div ref="incomingPieChart" class="chart"></div>
+      </div>
+      <div class="chart-box">
+        <div ref="outgoingPieChart" class="chart"></div>
+      </div>
     </div>
-    <div class="chart-container">
-      <div ref="addressStatsChart" class="chart"></div>
-    </div>
-    <div class="chart-container">
-      <div ref="incomingPieChart" class="chart"></div>
-    </div>
-    <div class="chart-container">
-      <div ref="outgoingPieChart" class="chart"></div>
-    </div>
-    <div v-if="showToast" class="toast">
+    <!-- Toast 提示 -->
+    <div v-if="showToast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-down">
       <span>地址已复制</span>
     </div>
   </div>
@@ -82,53 +85,35 @@ const showCopyToast = () => {
 
 const initCharts = () => {
   // 检查数据是否存在
-  if (!props.transactions || props.transactions.length === 0 ||
-      !props.addressStats || !props.addressStats.in || !props.addressStats.out) {
+  if (!props.transactions || props.transactions.length === 0) {
     console.log('图表数据不足，无法渲染')
     return
   }
 
-  // 初始化交易趋势图
-  if (transactionChart.value) {
-    chartInstances.transaction = echarts.init(transactionChart.value)
-    chartInstances.transaction.setOption(getTransactionChartOption(props.transactions))
-  }
-
-  // 初始化地址统计图
-  if (addressStatsChart.value) {
-    chartInstances.addressStats = echarts.init(addressStatsChart.value)
-    const addressData = prepareAddressStatsData()
-    chartInstances.addressStats.setOption(addressData)
-    
-    // 添加点击事件
-    chartInstances.addressStats.on('click', (params) => {
-      if (params.data && params.data.fullAddress) {
-        navigator.clipboard.writeText(params.data.fullAddress)
-          .then(() => {
-            showCopyToast()
-          })
-          .catch(err => {
-            console.error('复制失败:', err)
-          })
+  // 使用 nextTick 确保 DOM 已更新
+  nextTick(() => {
+    // 初始化交易趋势图
+    if (transactionChart.value) {
+      console.log('初始化交易趋势图')
+      if (chartInstances.transaction) {
+        chartInstances.transaction.dispose()
       }
-    })
-  }
+      chartInstances.transaction = echarts.init(transactionChart.value)
+      chartInstances.transaction.setOption(getTransactionChartOption(props.transactions))
+    }
 
-  // 初始化转入饼图
-  if (incomingPieChart.value) {
-    // 确保容器尺寸已设置
-    incomingPieChart.value.style.width = '100%'
-    incomingPieChart.value.style.height = '100%'
-    
-    chartInstances.incomingPie = echarts.init(incomingPieChart.value)
-    const inData = prepareIncomingPieData()
-    
-    // 确保有数据才设置选项
-    if (inData && inData.length > 0) {
-      chartInstances.incomingPie.setOption(getPieChartOption(inData, '转入地址分布', true))
+    // 初始化地址统计图
+    if (addressStatsChart.value && props.addressStats) {
+      console.log('初始化地址统计图')
+      if (chartInstances.addressStats) {
+        chartInstances.addressStats.dispose()
+      }
+      chartInstances.addressStats = echarts.init(addressStatsChart.value)
+      const addressData = prepareAddressStatsData()
+      chartInstances.addressStats.setOption(addressData)
       
       // 添加点击事件
-      chartInstances.incomingPie.on('click', (params) => {
+      chartInstances.addressStats.on('click', (params) => {
         if (params.data && params.data.fullAddress) {
           navigator.clipboard.writeText(params.data.fullAddress)
             .then(() => {
@@ -140,40 +125,65 @@ const initCharts = () => {
         }
       })
     }
-  }
 
-  // 初始化转出饼图
-  if (outgoingPieChart.value) {
-    // 确保容器尺寸已设置
-    outgoingPieChart.value.style.width = '100%'
-    outgoingPieChart.value.style.height = '100%'
-    chartInstances.outgoingPie = echarts.init(outgoingPieChart.value)
-    const outData = prepareOutgoingPieData()
-    
-    // 确保有数据才设置选项
-    if (outData && outData.length > 0) {
-      chartInstances.outgoingPie.setOption(getPieChartOption(outData, '转出地址分布', false))
+    // 初始化转入饼图
+    if (incomingPieChart.value && props.addressStats && props.addressStats.in) {
+      console.log('初始化转入饼图')
+      if (chartInstances.incomingPie) {
+        chartInstances.incomingPie.dispose()
+      }
+      chartInstances.incomingPie = echarts.init(incomingPieChart.value)
+      const inData = prepareIncomingPieData()
       
-      // 添加点击事件
-      chartInstances.outgoingPie.on('click', (params) => {
-        if (params.data && params.data.fullAddress) {
-          navigator.clipboard.writeText(params.data.fullAddress)
-            .then(() => {
-              showCopyToast()
-            })
-            .catch(err => {
-              console.error('复制失败:', err)
-            })
-        }
-      })
+      if (inData && inData.length > 0) {
+        chartInstances.incomingPie.setOption(getPieChartOption(inData, '转入地址分布', true))
+        
+        chartInstances.incomingPie.on('click', (params) => {
+          if (params.data && params.data.fullAddress) {
+            navigator.clipboard.writeText(params.data.fullAddress)
+              .then(() => {
+                showCopyToast()
+              })
+              .catch(err => {
+                console.error('复制失败:', err)
+              })
+          }
+        })
+      }
     }
-  }
+
+    // 初始化转出饼图
+    if (outgoingPieChart.value && props.addressStats && props.addressStats.out) {
+      console.log('初始化转出饼图')
+      if (chartInstances.outgoingPie) {
+        chartInstances.outgoingPie.dispose()
+      }
+      chartInstances.outgoingPie = echarts.init(outgoingPieChart.value)
+      const outData = prepareOutgoingPieData()
+      
+      if (outData && outData.length > 0) {
+        chartInstances.outgoingPie.setOption(getPieChartOption(outData, '转出地址分布', false))
+        
+        chartInstances.outgoingPie.on('click', (params) => {
+          if (params.data && params.data.fullAddress) {
+            navigator.clipboard.writeText(params.data.fullAddress)
+              .then(() => {
+                showCopyToast()
+              })
+              .catch(err => {
+                console.error('复制失败:', err)
+              })
+          }
+        })
+      }
+    }
+  })
 }
 
 const prepareAddressStatsData = () => {
   // 检查数据完整性
   if (!props.addressStats || !props.addressStats.in || !props.addressStats.out) {
-    console.warn('地址统计数据不完整')
+    console.warn('地址统计数据不完整:', props.addressStats)
     return {}
   }
 
@@ -217,6 +227,8 @@ const prepareAddressStatsData = () => {
     inValue: data.in,
     outValue: data.out
   }))
+
+  console.log('处理后的地址统计数据:', data)
 
   return {
     title: {
@@ -343,8 +355,11 @@ const handleResize = () => {
 }
 
 onMounted(() => {
-  initCharts()
-  window.addEventListener('resize', handleResize)
+  // 等待一帧以确保 DOM 已完全加载
+  window.requestAnimationFrame(() => {
+    initCharts()
+    window.addEventListener('resize', handleResize)
+  })
 })
 
 onBeforeUnmount(() => {
@@ -357,12 +372,14 @@ onBeforeUnmount(() => {
 })
 
 watch(() => props.transactions, () => {
+  console.log('交易数据变化:', props.transactions)
   nextTick(() => {
     initCharts()
   })
 }, { deep: true })
 
 watch(() => props.addressStats, () => {
+  console.log('地址统计变化:', props.addressStats)
   nextTick(() => {
     initCharts()
   })
@@ -371,89 +388,53 @@ watch(() => props.addressStats, () => {
 
 <style scoped>
 .charts-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  padding: 20px;
-  width: 100%;
-  box-sizing: border-box;
+  @apply w-full p-4;
 }
 
-.chart-container {
-  width: 100%;
-  height: 500px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  box-sizing: border-box;
-  overflow: hidden;
+.chart-wrapper {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+}
+
+.chart-box {
+  @apply bg-white rounded-xl shadow-lg p-6 min-h-[500px];
+  height: calc(100vh - 400px);
+  min-height: 500px;
+  max-height: 800px;
 }
 
 .chart {
-  width: 100%;
-  height: 100%;
+  @apply w-full h-full;
 }
 
-/* 移动端适配 */
+/* 平板电脑布局 */
 @media screen and (max-width: 1200px) {
-  .charts-container {
-    grid-template-columns: 1fr;
-    padding: 15px;
-    gap: 15px;
+  .chart-wrapper {
+    @apply grid-cols-1 gap-4;
   }
 
-  .chart-container {
-    height: 400px;
-    padding: 15px;
+  .chart-box {
+    @apply p-4 min-h-[400px];
+    height: calc(100vh - 300px);
+    min-height: 400px;
+    max-height: 600px;
   }
 }
 
-/* 小屏幕适配 */
+/* 手机布局 */
 @media screen and (max-width: 768px) {
   .charts-container {
-    padding: 10px;
-    gap: 10px;
+    @apply p-2;
   }
 
-  .chart-container {
-    height: 300px;
-    padding: 10px;
+  .chart-wrapper {
+    @apply gap-3;
   }
-}
 
-/* 添加提示样式 */
-.toast {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  z-index: 9999;
-  animation: fadeInOut 2s ease-in-out;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-@keyframes fadeInOut {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -20px);
-  }
-  10% {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-  90% {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -20px);
+  .chart-box {
+    @apply p-3 min-h-[300px];
+    height: calc(100vh - 200px);
+    min-height: 300px;
+    max-height: 400px;
   }
 }
 </style> 

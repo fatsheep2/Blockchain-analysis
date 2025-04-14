@@ -659,14 +659,27 @@ const drawTransactionChart = (transactions, type) => {
   
   try {
     chartInstance = echarts.init(container)
-    const dates = transactions.map(tx => {
+    
+    // 按日期对交易进行分组和汇总
+    const transactionsByDate = {}
+    transactions.forEach(tx => {
       const timestamp = tx.block_ts / 1000
-      return new Date(timestamp * 1000).toLocaleDateString()
+      const date = new Date(timestamp * 1000).toLocaleDateString()
+      const amount = parseFloat(tx.quant || 0) / 1e6
+      
+      if (!transactionsByDate[date]) {
+        transactionsByDate[date] = amount
+      } else {
+        transactionsByDate[date] += amount
+      }
     })
-    const values = transactions.map(tx => {
-      const amount = tx.quant || 0
-      return parseFloat(amount) / 1e6
-    })
+    
+    // 转换为数组并按日期排序
+    const sortedData = Object.entries(transactionsByDate)
+      .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB))
+    
+    const dates = sortedData.map(([date]) => date)
+    const values = sortedData.map(([, amount]) => amount)
 
     const option = {
       title: {
@@ -694,9 +707,9 @@ const drawTransactionChart = (transactions, type) => {
         }
       },
       grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
+        left: '10%',
+        right: '5%',
+        bottom: '20%',
         top: '15%',
         containLabel: true
       },
@@ -710,7 +723,12 @@ const drawTransactionChart = (transactions, type) => {
         },
         axisLabel: {
           color: '#666',
-          fontSize: 12
+          fontSize: 12,
+          rotate: 45,
+          margin: 16,
+          formatter: function(value) {
+            return value.replace(/(\d{4})\/(\d{2})\/(\d{2})/, '$2-$3')
+          }
         }
       },
       yAxis: {
@@ -733,7 +751,13 @@ const drawTransactionChart = (transactions, type) => {
         },
         axisLabel: {
           color: '#666',
-          fontSize: 12
+          fontSize: 12,
+          formatter: function(value) {
+            if (value >= 1000) {
+              return (value / 1000).toFixed(1) + 'k'
+            }
+            return value
+          }
         }
       },
       series: [{
@@ -865,9 +889,9 @@ const drawAddressStatsChart = (addressStats) => {
         }
       },
       grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
+        left: '20%',  // 增加左侧空间
+        right: '5%',
+        bottom: '10%',
         top: '15%',
         containLabel: true
       },
@@ -876,22 +900,13 @@ const drawAddressStatsChart = (addressStats) => {
         name: 'USDT',
         nameTextStyle: {
           color: '#666',
-          fontSize: 12
-        },
-        axisLine: {
-          lineStyle: {
-            color: '#ddd'
-          }
-        },
-        splitLine: {
-          lineStyle: {
-            color: '#eee',
-            type: 'dashed'
-          }
+          fontSize: 12,
+          padding: [0, 0, 0, 20]  // 增加名称边距
         },
         axisLabel: {
           color: '#666',
-          fontSize: 12
+          fontSize: 12,
+          margin: 14
         }
       },
       yAxis: {
@@ -905,7 +920,8 @@ const drawAddressStatsChart = (addressStats) => {
         axisLabel: {
           color: '#666',
           fontSize: 12,
-          formatter: function(value, index) {
+          margin: 20,  // 增加标签边距
+          formatter: function(value) {
             return value
           }
         }
@@ -1007,13 +1023,13 @@ const drawPieCharts = (addressStats) => {
           }
         },
         legend: {
-          show: false  // 隐藏图例
+          show: false
         },
         series: [{
           name: '转入地址',
           type: 'pie',
           radius: ['40%', '70%'],
-          center: ['40%', '50%'],
+          center: ['50%', '50%'],
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 10,
@@ -1284,9 +1300,12 @@ const captureScreenshot = async (type) => {
           }
           .result-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
           }
           .result-card {
             background: white;
@@ -1294,8 +1313,11 @@ const captureScreenshot = async (type) => {
             padding: 20px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.1);
             transition: all 0.3s ease;
-            min-width: 200px;
+            min-width: 240px;
             overflow: visible;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
           }
           .result-card h3 {
             font-size: 16px;
@@ -1840,6 +1862,9 @@ const getSortIcon = (key) => {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 20px;
   margin-bottom: 20px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .result-card {
@@ -1848,9 +1873,51 @@ const getSortIcon = (key) => {
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   transition: all 0.3s ease;
-  min-width: 0;
-  width: 100%;
+  min-width: 240px;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (min-width: 1200px) {
+  .result-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 1199px) and (min-width: 992px) {
+  .result-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 991px) and (min-width: 768px) {
+  .result-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .result-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+  }
+  
+  .result-card {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .result-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  
+  .result-card {
+    min-width: 150px;
+  }
 }
 
 .result-card h3 {
@@ -2067,19 +2134,26 @@ const getSortIcon = (key) => {
   margin-bottom: 20px;
   overflow-x: auto;
   max-width: 100%;
+  padding: 10px;
 }
 
 .chart-container {
   position: relative;
   width: 100%;
   height: 400px;
-  overflow: hidden;
   padding: 20px;
-  box-sizing: border-box;
-  min-width: 300px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
+  min-height: 350px;
+  margin-bottom: 30px;
 }
 
 .pie-chart {
@@ -2321,7 +2395,7 @@ const getSortIcon = (key) => {
   }
 
   .result-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 15px;
   }
 
@@ -2332,7 +2406,7 @@ const getSortIcon = (key) => {
   }
 
   .result-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 15px;
   }
 
@@ -2500,6 +2574,11 @@ const getSortIcon = (key) => {
   .section-title {
     font-size: 16px;
     margin-bottom: 12px;
+  }
+
+  .result-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
   }
 }
 </style>

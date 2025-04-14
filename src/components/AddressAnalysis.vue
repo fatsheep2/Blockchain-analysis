@@ -1020,15 +1020,7 @@ const drawPieCharts = (addressStats) => {
           }
         },
         legend: {
-          type: 'scroll',
-          orient: 'vertical',
-          right: 10,
-          top: 50,
-          bottom: 20,
-          textStyle: {
-            color: '#666',
-            fontSize: 12
-          }
+          show: false  // 隐藏图例
         },
         series: [{
           name: '转入地址',
@@ -1101,7 +1093,7 @@ const drawPieCharts = (addressStats) => {
           fullAddress: addr
         }))
       
-      const option = {
+      const outOption = {
         title: {
           text: '转出地址分布',
           textStyle: {
@@ -1130,21 +1122,13 @@ const drawPieCharts = (addressStats) => {
           }
         },
         legend: {
-          type: 'scroll',
-          orient: 'vertical',
-          right: 10,
-          top: 50,
-          bottom: 20,
-          textStyle: {
-            color: '#666',
-            fontSize: 12
-          }
+          show: false
         },
         series: [{
           name: '转出地址',
           type: 'pie',
           radius: ['40%', '70%'],
-          center: ['40%', '50%'],
+          center: ['50%', '50%'],
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 10,
@@ -1174,7 +1158,7 @@ const drawPieCharts = (addressStats) => {
         }]
       }
 
-      outgoingPieChartInstance.setOption(option)
+      outgoingPieChartInstance.setOption(outOption)
       outgoingPieChartInstance.resize()
 
       // 添加点击事件
@@ -1324,27 +1308,30 @@ const captureScreenshot = async (type) => {
             box-shadow: 0 2px 12px rgba(0,0,0,0.1);
             transition: all 0.3s ease;
             min-width: 200px;
-            overflow: hidden;
+            overflow: visible;
           }
           .result-card h3 {
             font-size: 16px;
             color: #64748b;
             margin-bottom: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow: visible;
           }
           .result-card p {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 600;
             color: #1e293b;
             padding: 12px;
             background: #f8fafc;
             border-radius: 12px;
             text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow: visible;
+            word-break: break-word;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
           .chart-container {
             background: white;
@@ -1965,29 +1952,32 @@ const getSortIcon = (key) => {
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   transition: all 0.3s ease;
   min-width: 200px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .result-card h3 {
   font-size: 16px;
   color: #64748b;
   margin-bottom: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
 }
 
 .result-card p {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: #1e293b;
   padding: 12px;
   background: #f8fafc;
   border-radius: 12px;
   text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  word-break: break-word;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-icon {
@@ -2224,6 +2214,21 @@ const getSortIcon = (key) => {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   margin-bottom: 12px;
+  align-items: center;
+}
+
+.list-columns .col {
+  font-weight: 600;
+  color: #64748b;
+  text-align: left;
+}
+
+.list-columns .col:nth-child(4) {
+  text-align: right;
+}
+
+.list-columns .col:last-child {
+  text-align: center;
 }
 
 .transaction-item {
@@ -2233,11 +2238,22 @@ const getSortIcon = (key) => {
   padding: 12px;
   align-items: center;
   transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.transaction-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+.transaction-item .col {
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-item .col:nth-child(4) {
+  text-align: right;
+}
+
+.transaction-item .col:last-child {
+  text-align: center;
 }
 
 .tx-type, .tx-status {
@@ -2405,6 +2421,17 @@ const getSortIcon = (key) => {
   .transaction-item {
     grid-template-columns: 140px 80px minmax(160px, 1fr) 120px 80px;
   }
+
+  .result-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+
+  .result-card p {
+    font-size: 16px;
+    padding: 8px;
+    min-height: 45px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2414,61 +2441,139 @@ const getSortIcon = (key) => {
   }
 
   .token-item {
-    padding: 8px;
-    gap: 8px;
+    padding: 12px;
+    gap: 12px;
     min-width: auto;
     width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .token-info {
     min-width: 0;
-    max-width: 50%;
-    flex: 1;
-  }
-
-  .token-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
-    flex-shrink: 0;
+    max-width: 100%;
+    width: 100%;
   }
 
   .token-details {
-    max-width: calc(100% - 40px);
-    min-width: 0;
+    max-width: calc(100% - 48px);
   }
 
   .token-name {
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 14px;
+    white-space: normal;
+    word-break: break-word;
   }
 
   .token-balance {
     min-width: 0;
-    max-width: 50%;
-    flex: 1;
-    text-align: right;
+    max-width: 100%;
+    width: 100%;
+    text-align: left;
+    margin-top: 8px;
+    padding-left: 48px;
   }
 
   .token-balance .amount {
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 16px;
+    white-space: normal;
+    word-break: break-word;
   }
 
   .token-balance .usdt-value {
-    font-size: 11px;
-    justify-content: flex-end;
+    font-size: 13px;
+    justify-content: flex-start;
   }
 
-  .wallet-balance {
+  .charts-container {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-container {
+    height: 300px;
+    min-width: 0;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .transaction-list {
     padding: 12px;
     overflow-x: hidden;
+  }
+
+  .list-content {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .list-columns {
+    display: none;
+  }
+
+  .transaction-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 16px;
+    border-bottom: none;
+  }
+
+  .transaction-item .col {
+    width: 100%;
+    padding: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: normal;
+  }
+
+  .transaction-item .col:last-child {
+    border-bottom: none;
+    text-align: right;
+  }
+
+  .transaction-item .col::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #64748b;
+    flex-shrink: 0;
+    margin-right: 12px;
+  }
+
+  .address-container {
+    flex: 1;
+    justify-content: flex-end;
+    background: transparent;
+    padding: 0;
+  }
+
+  .address-text {
+    font-size: 13px;
+    text-align: right;
+    word-break: break-all;
+  }
+
+  .tx-type, .tx-status {
+    margin-left: auto;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-card {
+    min-width: 0;
+  }
+
+  .result-card p {
+    font-size: 16px;
+    padding: 8px;
+    min-height: auto;
   }
 }
 </style>

@@ -2186,35 +2186,78 @@ const getSortIcon = (key) => {
 }
 
 .chart-container {
+  width: 100%;
   height: 400px;
-  width: 100%;
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  margin: 20px 0;
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: chartSlide 0.6s ease-out forwards;
-  opacity: 0;
-  transform: translateX(20px);
+  overflow: hidden;
 }
 
-@keyframes chartSlide {
-  to {
-    opacity: 1;
-    transform: translateX(0);
+@media screen and (max-width: 768px) {
+  .chart-container {
+    height: 300px;
+    margin: 12px 0;
+    padding: 0;
   }
-}
 
-.chart-container:hover {
-  transform: translateY(-5px) scale(1.01);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-}
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+  }
 
-.chart {
-  width: 100%;
-  height: 100%;
-  min-height: 400px;
+  .chart-item {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* 优化交易记录显示 */
+  .transaction-list {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .list-columns {
+    display: none; /* 在移动端隐藏表头 */
+  }
+
+  .transaction-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+  }
+
+  .tx-type, .tx-status {
+    width: 100%;
+    text-align: center;
+  }
+
+  .address-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 优化钱包余额显示 */
+  .wallet-balance {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .token-list {
+    width: 100%;
+  }
+
+  .token-item {
+    width: 100%;
+    margin-bottom: 8px;
+  }
 }
 
 .transaction-list {

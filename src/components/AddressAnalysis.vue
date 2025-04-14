@@ -39,20 +39,7 @@
     </div>
 
     <div v-if="analysisResult" class="analysis-result">
-      <div class="screenshot-btn" @click="showScreenshotOptions">
-        <i class="icon-camera"></i>
-        截图
-      </div>
-      <div v-if="showOptions" class="screenshot-options">
-        <div class="option-item" @click="captureScreenshot('clipboard')">
-          <i class="icon-clipboard"></i>
-          复制到剪贴板
-        </div>
-        <div class="option-item" @click="captureScreenshot('download')">
-          <i class="icon-download"></i>
-          保存到本地
-        </div>
-      </div>
+      <h2 class="section-title">地址总结</h2>
       <div class="result-grid">
         <div class="result-card">
           <div class="card-icon">📊</div>
@@ -1839,108 +1826,18 @@ const getSortIcon = (key) => {
   margin-top: 20px;
 }
 
-.screenshot-btn {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #3b82f6;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1000;
-  animation: buttonFloat 2s infinite;
-  max-width: 120px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@keyframes buttonFloat {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-.screenshot-btn:hover {
-  background: #2563eb;
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.screenshot-btn .icon-camera {
-  width: 16px;
-  height: 16px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-10c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z'/%3E%3C/svg%3E") no-repeat center;
-  background-size: contain;
-}
-
-.screenshot-options {
-  position: fixed;
-  top: 60px;
-  right: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 8px 0;
-  z-index: 1000;
-}
-
-.option-item {
-  padding: 8px 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.option-item:hover {
-  background: #f8fafc;
-}
-
-.option-item .icon-clipboard {
-  width: 16px;
-  height: 16px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z'/%3E%3C/svg%3E") no-repeat center;
-  background-size: contain;
-}
-
-.option-item .icon-download {
-  width: 16px;
-  height: 16px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E") no-repeat center;
-  background-size: contain;
-}
-
-.screenshot-loading {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 16px 24px;
-  border-radius: 8px;
-  font-size: 16px;
-  z-index: 1001;
+.section-title {
+  font-size: 20px;
+  color: #1e293b;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .result-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 20px;
   margin-bottom: 20px;
 }
@@ -1951,7 +1848,8 @@ const getSortIcon = (key) => {
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   transition: all 0.3s ease;
-  min-width: 200px;
+  min-width: 0;
+  width: 100%;
   overflow: visible;
 }
 
@@ -2432,6 +2330,20 @@ const getSortIcon = (key) => {
     padding: 8px;
     min-height: 45px;
   }
+
+  .result-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+  }
+
+  .result-card {
+    padding: 15px;
+  }
+
+  .section-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2574,6 +2486,20 @@ const getSortIcon = (key) => {
     font-size: 16px;
     padding: 8px;
     min-height: auto;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .result-card {
+    padding: 12px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    margin-bottom: 12px;
   }
 }
 </style>

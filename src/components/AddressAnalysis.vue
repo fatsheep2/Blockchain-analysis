@@ -1313,44 +1313,38 @@ const captureScreenshot = async (type) => {
           }
           .result-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
             margin-bottom: 20px;
           }
           .result-card {
-            text-align: center;
-            padding: 24px;
-            background: #f8fafc;
+            background: white;
             border-radius: 16px;
-            border: 1px solid #e2e8f0;
+            padding: 20px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-          }
-          .card-icon {
-            font-size: 32px;
-            margin-bottom: 16px;
-            background: #fff;
-            width: 64px;
-            height: 64px;
-            line-height: 64px;
-            border-radius: 50%;
-            margin: 0 auto 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            min-width: 200px;
+            overflow: hidden;
           }
           .result-card h3 {
-            margin: 0 0 12px;
             font-size: 16px;
-            font-weight: 600;
             color: #64748b;
+            margin-bottom: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           .result-card p {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 700;
+            font-size: 24px;
+            font-weight: 600;
             color: #1e293b;
-            background: #fff;
             padding: 12px;
+            background: #f8fafc;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           .chart-container {
             background: white;
@@ -1959,34 +1953,41 @@ const getSortIcon = (key) => {
 
 .result-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 20px;
 }
 
 .result-card {
-  text-align: center;
-  padding: 24px;
-  background: #f8fafc;
+  background: white;
   border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #e2e8f0;
-  animation: cardAppear 0.5s ease-out forwards;
-  opacity: 0;
-  transform: translateY(20px);
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  min-width: 200px;
+  overflow: hidden;
 }
 
-@keyframes cardAppear {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.result-card h3 {
+  font-size: 16px;
+  color: #64748b;
+  margin-bottom: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.result-card:hover {
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  border-color: #3b82f6;
+.result-card p {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1e293b;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-icon {
@@ -1999,32 +2000,6 @@ const getSortIcon = (key) => {
   border-radius: 50%;
   margin: 0 auto 16px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-
-.result-card h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.result-card p {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  background: #fff;
-  padding: 12px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-
-/* 添加暂无数据的样式 */
-.result-card p:empty::before {
-  content: '暂无数据';
-  color: #94a3b8;
-  font-size: 16px;
-  font-weight: normal;
 }
 
 .sub-info {
@@ -2051,6 +2026,7 @@ const getSortIcon = (key) => {
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   animation: slideUp 0.5s ease-out forwards;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .section-header {
@@ -2093,7 +2069,7 @@ const getSortIcon = (key) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-width: 500px;
+  min-width: 600px;
 }
 
 .token-item {
@@ -2105,7 +2081,7 @@ const getSortIcon = (key) => {
   border-radius: 12px;
   transition: all 0.3s ease;
   border: 1px solid #e2e8f0;
-  min-width: 450px;
+  min-width: 550px;
 }
 
 .token-item:hover {
@@ -2119,7 +2095,8 @@ const getSortIcon = (key) => {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 200px;
+  min-width: 250px;
+  max-width: 300px;
 }
 
 .token-icon {
@@ -2170,13 +2147,17 @@ const getSortIcon = (key) => {
 
 .token-balance {
   text-align: right;
-  min-width: 150px;
+  min-width: 200px;
+  max-width: 250px;
 }
 
 .token-balance .amount {
   font-size: 18px;
   font-weight: 600;
   color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .token-balance .usdt-value {
@@ -2186,6 +2167,9 @@ const getSortIcon = (key) => {
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .charts-container {
@@ -2194,6 +2178,7 @@ const getSortIcon = (key) => {
   gap: 20px;
   margin-bottom: 20px;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .chart-container {
@@ -2204,6 +2189,9 @@ const getSortIcon = (key) => {
   padding: 20px;
   box-sizing: border-box;
   min-width: 300px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
 }
 
 .pie-chart {
@@ -2219,27 +2207,103 @@ const getSortIcon = (key) => {
   margin-top: 30px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .list-content {
-  min-width: 700px;
+  min-width: 800px;
 }
 
 .list-columns {
   display: grid;
-  grid-template-columns: 140px 80px 200px 120px 80px;
-  gap: 10px;
-  padding: 10px;
-  font-size: 12px;
+  grid-template-columns: 160px 100px 240px 140px 100px;
+  gap: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 8px;
 }
 
 .transaction-item {
   display: grid;
-  grid-template-columns: 140px 80px 200px 120px 80px;
-  gap: 10px;
-  padding: 10px;
+  grid-template-columns: 160px 100px 240px 140px 100px;
+  gap: 12px;
+  padding: 12px;
   margin-bottom: 8px;
+  font-size: 14px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: all 0.3s ease;
+}
+
+.transaction-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.tx-type, .tx-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
   font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 60px;
+}
+
+.tx-type.in {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.tx-type.out {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.tx-status.success {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.tx-status.failed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.address-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.address-text {
+  font-family: monospace;
+  font-size: 13px;
+  color: #1e293b;
+  word-break: break-all;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+}
+
+.copy-btn:hover {
+  background: #e2e8f0;
+  color: #3b82f6;
 }
 
 @media (max-width: 768px) {
@@ -2256,6 +2320,11 @@ const getSortIcon = (key) => {
     padding: 12px;
     gap: 8px;
     min-width: 450px;
+  }
+
+  .token-info {
+    min-width: 200px;
+    max-width: 250px;
   }
 
   .token-icon {
@@ -2278,7 +2347,8 @@ const getSortIcon = (key) => {
   }
 
   .token-balance {
-    min-width: 120px;
+    min-width: 150px;
+    max-width: 200px;
   }
 
   .token-balance .amount {
@@ -2319,6 +2389,19 @@ const getSortIcon = (key) => {
   .transaction-item {
     grid-template-columns: 140px 80px 200px 120px 80px;
   }
+
+  .tx-type, .tx-status {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .address-container {
+    padding: 6px;
+  }
+
+  .address-text {
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2335,6 +2418,11 @@ const getSortIcon = (key) => {
     padding: 8px;
     gap: 6px;
     min-width: 400px;
+  }
+
+  .token-info {
+    min-width: 180px;
+    max-width: 220px;
   }
 
   .token-icon {
@@ -2357,7 +2445,8 @@ const getSortIcon = (key) => {
   }
 
   .token-balance {
-    min-width: 100px;
+    min-width: 120px;
+    max-width: 180px;
   }
 
   .token-balance .amount {
@@ -2392,6 +2481,19 @@ const getSortIcon = (key) => {
 
   .transaction-item {
     grid-template-columns: 120px 70px 180px 100px 70px;
+  }
+
+  .tx-type, .tx-status {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .address-container {
+    padding: 4px;
+  }
+
+  .address-text {
+    font-size: 10px;
   }
 }
 </style>

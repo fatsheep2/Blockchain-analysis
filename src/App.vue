@@ -1,11 +1,27 @@
 <template>
   <div class="app">
-        <AddressAnalysis />
+    <AddressAnalysis :start-address-analysis="routeAddress" />
   </div>
 </template>
 
 <script setup>
+import { computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AddressAnalysis from './components/AddressAnalysis.vue'
+
+const route = useRoute()
+const routeAddress = computed(() => {
+  // 确保正确处理路由参数
+  const address = route.params.address
+  return address ? decodeURIComponent(address) : ''
+})
+
+// 监听路由变化
+watch(routeAddress, (newAddress) => {
+  if (newAddress) {
+    console.log('检测到新地址:', newAddress)
+  }
+})
 </script>
 
 <style>

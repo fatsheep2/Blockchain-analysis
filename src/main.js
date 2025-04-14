@@ -1,9 +1,24 @@
 import { createApp } from 'vue'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
 import App from './App.vue'
+import 'animate.css'
 import './index.css'
+import { createRouter, createWebHistory } from 'vue-router'
+
+// 创建路由实例
+const router = createRouter({
+  history: createWebHistory('/Blockchain-analysis/'),
+  routes: [
+    {
+      path: '/',
+      component: App
+    },
+    {
+      path: '/:address',
+      component: App
+    }
+  ]
+})
 
 const app = createApp(App)
-app.use(ElementPlus)
+app.use(router)
 app.mount('#app')

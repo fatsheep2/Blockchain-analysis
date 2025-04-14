@@ -23,19 +23,10 @@ export const captureScreenshot = async (element, type, address) => {
       scrollY: -window.scrollY,
       onclone: (clonedDoc) => {
         // 确保克隆的文档中包含所有样式
-        const style = clonedDoc.createElement('style')
-        style.textContent = `
-          .address-analysis {
-            background-color: #f8fafc;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            min-height: 100vh;
-            padding: 20px;
-          }
-          .screenshot-btn, .screenshot-options {
-            display: none;
-          }
-        `
-        clonedDoc.head.appendChild(style)
+        const existingStyles = document.querySelectorAll('style, link[rel="stylesheet"]');
+        existingStyles.forEach(style => {
+          clonedDoc.head.appendChild(style.cloneNode(true));
+        });
       }
     })
 

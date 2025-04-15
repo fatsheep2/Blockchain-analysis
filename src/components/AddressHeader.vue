@@ -14,13 +14,12 @@
         >
           {{ loading ? '分析中...' : '生成报告' }}
         </button>
-        <button 
+        <ShareMenu 
           v-if="showScreenshot"
-          @click="saveReport" 
-          class="bg-white/20 backdrop-blur text-white px-6 py-3 rounded-lg font-semibold hover:bg-white/30 active:bg-white/40 border border-white/30 transition-all duration-200"
-        >
-          保存报告
-        </button>
+          :address="address"
+          @save-image="handleSaveImage"
+          @share-image="handleShareImage"
+        />
       </div>
 
       <div class="max-w-3xl mx-auto">
@@ -46,7 +45,7 @@
       </div>
     </div>
 
-    <!-- 截图选项 -->
+    <!-- 截图选项
     <div v-if="showOptions" class="absolute top-4 right-4 bg-white rounded-lg shadow-xl p-2">
       <button 
         @click="$emit('capture', 'clipboard')" 
@@ -60,7 +59,7 @@
       >
         保存到本地
       </button>
-    </div>
+    </div> -->
 
     <!-- 背景动画效果 -->
     <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent animate-shimmer"></div>
@@ -68,6 +67,9 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+import ShareMenu from './ShareMenu.vue'
+
 const props = defineProps({
   address: {
     type: String,
@@ -97,8 +99,12 @@ const generateReport = () => {
   emit('search')
 }
 
-const saveReport = () => {
-  emit('screenshot-click')
+const handleSaveImage = () => {
+  emit('screenshot-click', 'download')
+}
+
+const handleShareImage = () => {
+  emit('screenshot-click', 'share')
 }
 </script>
 

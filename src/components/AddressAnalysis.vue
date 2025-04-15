@@ -8,7 +8,7 @@
         :show-screenshot="!!analysisResult"
         :show-options="showOptions"
         @search="analyzeAddress"
-        @screenshot-click="showScreenshotOptions"
+        @screenshot-click="showShareOptions"
         @capture="captureScreenshot"
       />
     </div>
@@ -19,7 +19,88 @@
     <div v-else-if="error" class="animate-fade-in">
       <LoadingError :error="error" />
     </div>
-    <div v-else class="analysis-results">
+    <div v-else class="analysis-results relative">
+      <!-- 未分析状态遮罩 -->
+      <div v-if="!analysisResult" class="absolute inset-x-0 top-0 bottom-0 bg-gray-900/50 backdrop-blur-sm flex items-start justify-center z-50 pointer-events-auto">
+        <div class="text-center text-white p-6 rounded-xl bg-gray-900/80 backdrop-blur shadow-xl max-w-md mx-4 mt-8 md:mt-12">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="text-lg font-bold mb-2">开始分析</h3>
+          <p class="text-gray-300 text-sm">请在上方输入区块链地址，点击"生成报告"开始分析</p>
+        </div>
+      </div>
+
+      <!-- 截图选项菜单 -->
+      <div v-if="showOptions" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100] flex items-center justify-center" @click.self="showOptions = false">
+        <div class="bg-white rounded-xl shadow-2xl p-4 w-full max-w-sm mx-4 animate-fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">分享分析报告</h3>
+            <button @click="showOptions = false" class="text-gray-400 hover:text-gray-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="space-y-3">
+            <!-- 分享部分 -->
+            <div class="space-y-2">
+              <h4 class="text-sm font-medium text-gray-500">分享方式</h4>
+              <div class="flex flex-col gap-2">
+                <!-- 系统分享（仅安卓显示） -->
+                <button 
+                  v-if="isAndroid"
+                  @click="shareViaSystem"
+                  class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  系统分享
+                </button>
+                <!-- 复制链接 -->
+                <button 
+                  @click="copyShareLink"
+                  class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                  复制链接
+                </button>
+              </div>
+            </div>
+            
+            <!-- 保存部分 -->
+            <div class="space-y-2">
+              <h4 class="text-sm font-medium text-gray-500">保存方式</h4>
+              <div class="flex flex-col gap-2">
+                <!-- 保存到剪贴板 -->
+                <button 
+                  @click="captureScreenshot('clipboard')"
+                  class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                  保存到剪贴板
+                </button>
+                <!-- 保存为文件 -->
+                <button 
+                  @click="captureScreenshot('file')"
+                  class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  保存为文件
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="animate-slide-in-left [animation-delay:200ms]">
           <AddressSummary :data="analysisResult" />
@@ -51,7 +132,7 @@
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { ref, computed } from 'vue'
 import AddressHeader from './AddressHeader.vue'
 import AddressSummary from './AddressSummary.vue'
@@ -62,6 +143,7 @@ import LoadingError from './LoadingError.vue'
 import { captureScreenshot as capture } from '../utils/screenshot'
 import { formatDate, formatAmount } from '../utils/formatter'
 import { useRoute } from 'vue-router'
+import html2canvas from 'html2canvas'
 
 const props = defineProps({
   startAddressAnalysis: {
@@ -69,6 +151,8 @@ const props = defineProps({
     default: ''
   }
 })
+
+const route = useRoute()
 
 // 状态
 const address = ref('')
@@ -122,10 +206,13 @@ const analyzeAddress = async () => {
 
     addressType.value = detectedType
 
-    // 更新URL以包含分析地址
-    const baseUrl = `${window.location.origin}/Blockchain-analysis`
-    const newUrl = `${baseUrl}/${address.value}`
-    window.history.replaceState({ path: newUrl }, '', newUrl)
+    // 更新URL以包含分析地址（使用hash模式）
+    const baseUrl = window.location.origin
+    const newUrl = `${baseUrl}/Blockchain-analysis/#/${address.value}`
+    // 只有当URL不同时才更新
+    if (window.location.href !== newUrl) {
+      window.history.replaceState({ path: newUrl }, '', newUrl)
+    }
 
     if (detectedType === 'TRX') {
         // 获取代币余额
@@ -346,14 +433,113 @@ const analyzeProfile = (transactions) => {
 }
 
 // 截图相关
-const showScreenshotOptions = () => {
+const showShareOptions = () => {
   showOptions.value = !showOptions.value
 }
 
-const captureScreenshot = async (type) => {
-  const element = document.querySelector('.address-analysis')
-  await capture(element, type, address.value)
+const isAndroid = computed(() => {
+  return /Android/i.test(navigator.userAgent)
+})
+
+const copyShareLink = () => {
+  const baseUrl = window.location.origin
+  const shareText = `${baseUrl}/Blockchain-analysis/#/${address.value}`
+  copyToClipboard(shareText)
   showOptions.value = false
+}
+
+const shareViaSystem = async () => {
+  try {
+    const baseUrl = window.location.origin
+    const shareText = `${baseUrl}/Blockchain-analysis/#/${address.value}`
+    
+    if (navigator.share) {
+      await navigator.share({
+        title: '区块链地址分析报告',
+        text: `地址 ${address.value} 的分析报告`,
+        url: shareText
+      })
+    }
+  } catch (err) {
+    console.error('分享失败:', err)
+    // 如果系统分享失败，回退到复制链接
+    copyShareLink()
+  } finally {
+    showOptions.value = false
+  }
+}
+
+const captureScreenshot = async (type) => {
+  const element = document.querySelector('.analysis-results')
+  if (!element) return
+  
+  try {
+    // 创建加载提示
+    const loadingToast = document.createElement('div')
+    loadingToast.className = 'screenshot-loading'
+    loadingToast.innerHTML = `
+      <div class="flex flex-col items-center gap-2">
+        <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <span>正在生成图片...</span>
+      </div>
+    `
+    document.body.appendChild(loadingToast)
+
+    // 等待下一帧确保 DOM 更新
+    await nextTick()
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#f9fafb',
+      logging: false,
+      allowTaint: true
+    })
+
+    // 移除加载提示
+    document.body.removeChild(loadingToast)
+
+    if (type === 'clipboard') {
+      // 保存到剪贴板
+      try {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/png': blob
+          })
+        ])
+        showToast('图片已保存到剪贴板')
+      } catch (err) {
+        console.error('保存到剪贴板失败:', err)
+        showToast('保存到剪贴板失败，请重试', 'error')
+      }
+    } else {
+      // 保存为文件
+      const link = document.createElement('a')
+      link.download = `blockchain-analysis-${address.value}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+      showToast('图片已保存')
+    }
+
+  } catch (err) {
+    console.error('截图失败:', err)
+    showToast('保存失败，请重试', 'error')
+  } finally {
+    showOptions.value = false
+  }
+}
+
+const showToast = (message, type = 'success') => {
+  const toast = document.createElement('div')
+  toast.className = `copy-toast ${type === 'error' ? 'bg-red-500' : ''}`
+  toast.textContent = message
+  document.body.appendChild(toast)
+  setTimeout(() => {
+    if (toast.parentNode) {
+      document.body.removeChild(toast)
+    }
+  }, 2000)
 }
 
 // 复制功能
@@ -400,35 +586,41 @@ const copyToClipboard = async (text) => {
   }
 }
 
-// 处理地址参数
-const handleAddress = (newAddress) => {
-  if (!newAddress) return
-  console.log('处理地址:', newAddress)
-  address.value = newAddress
-  analyzeAddress()
+// 监听URL变化
+const handleUrlChange = () => {
+  const hash = window.location.hash
+  if (hash) {
+    const newAddress = hash.replace('#/', '')
+    if (newAddress && newAddress !== address.value) {
+      address.value = newAddress
+      analyzeAddress()
+    }
+  }
 }
 
-// 初始加载
+// 添加事件监听器
 onMounted(() => {
   // 处理路由参数
   if (props.startAddressAnalysis) {
     console.log('从路由获取到地址:', props.startAddressAnalysis)
     handleAddress(props.startAddressAnalysis)
   }
+  
+  // 添加hashchange事件监听
+  window.addEventListener('hashchange', handleUrlChange)
 })
 
-// 监听路由参数变化
-watch(() => props.startAddressAnalysis, (newAddress) => {
-  if (newAddress) {
-    console.log('路由地址变化:', newAddress)
-    handleAddress(newAddress)
-  }
+// 移除事件监听器
+onBeforeUnmount(() => {
+  window.removeEventListener('hashchange', handleUrlChange)
 })
 
-const shareAnalysis = () => {
-    const shareText = `${window.location.origin}/Blockchain-analysis/${address.value}`
-    copyToClipboard(shareText)
-    alert('分享链接已复制到剪贴板')
+// 修改handleAddress方法
+const handleAddress = (newAddress) => {
+  if (!newAddress) return
+  console.log('处理地址:', newAddress)
+  address.value = newAddress
+  analyzeAddress()
 }
 </script>
 
@@ -453,5 +645,9 @@ const shareAnalysis = () => {
 /* 截图加载样式 */
 :global(.screenshot-loading) {
   @apply fixed inset-0 bg-black/80 flex items-center justify-center text-white text-lg z-50;
+}
+
+.analysis-results {
+  min-height: calc(100vh - 180px);
 }
 </style>

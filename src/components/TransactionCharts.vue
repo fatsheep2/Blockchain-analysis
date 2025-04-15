@@ -193,12 +193,20 @@ const initCharts = () => {
           },
           legend: {
             orient: 'vertical',
-            left: 'left',
-            top: 'middle'
+            left: 10,
+            top: 'middle',
+            itemWidth: 10,
+            itemHeight: 10,
+            textStyle: {
+              fontSize: 12,
+              width: 60,
+              overflow: 'truncate'
+            }
           },
           series: [{
             type: 'pie',
             radius: ['40%', '70%'],
+            center: ['65%', '50%'],
             avoidLabelOverlap: true,
             itemStyle: {
               borderRadius: 10,
@@ -253,12 +261,20 @@ const initCharts = () => {
           },
           legend: {
             orient: 'vertical',
-            left: 'left',
-            top: 'middle'
+            left: 10,
+            top: 'middle',
+            itemWidth: 10,
+            itemHeight: 10,
+            textStyle: {
+              fontSize: 12,
+              width: 60,
+              overflow: 'truncate'
+            }
           },
           series: [{
             type: 'pie',
             radius: ['40%', '70%'],
+            center: ['65%', '50%'],
             avoidLabelOverlap: true,
             itemStyle: {
               borderRadius: 10,

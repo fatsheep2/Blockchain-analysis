@@ -7,7 +7,7 @@ import autoprefixer from 'autoprefixer'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
-  base: '/Blockchain-analysis/', // 注意大小写，与仓库名称完全匹配
+  base: '/', // 注意大小写，与仓库名称完全匹配
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -30,9 +30,9 @@ export default defineConfig({
   },
   server: {
     historyApiFallback: {
-      rewrites: [
-        { from: /^\/Blockchain-analysis\/.*$/, to: '/Blockchain-analysis/index.html' }
-      ]
+      // rewrites: [
+      //   { from: /^\/Blockchain-analysis\/.*$/, to: '/Blockchain-analysis/index.html' }
+      // ]
     },
     proxy: {
       '/api': {

@@ -42,7 +42,8 @@
               </svg>
             </button>
           </div>
-          <div class="space-y-3">
+          
+          <div class="space-y-4">
             <!-- 分享部分 -->
             <div class="space-y-2">
               <h4 class="text-sm font-medium text-gray-500">分享方式</h4>
@@ -97,15 +98,61 @@
                 </button>
               </div>
             </div>
+
+            <!-- 截图区域选择 -->
+            <div class="space-y-2 pt-2 border-t border-gray-200">
+              <h4 class="text-sm font-medium text-gray-500">选择保存内容</h4>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="relative flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    v-model="captureArea"
+                    value="summary"
+                    class="sr-only peer"
+                  />
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 peer-checked:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span class="text-xs text-center text-gray-600 peer-checked:text-blue-500 font-medium">概要信息</span>
+                  <div class="absolute inset-0 border-2 border-transparent rounded-lg peer-checked:border-blue-500"></div>
+                </label>
+                <label class="relative flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    v-model="captureArea"
+                    value="charts"
+                    class="sr-only peer"
+                  />
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 peer-checked:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <span class="text-xs text-center text-gray-600 peer-checked:text-blue-500 font-medium">概要+图表</span>
+                  <div class="absolute inset-0 border-2 border-transparent rounded-lg peer-checked:border-blue-500"></div>
+                </label>
+                <label class="relative flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    v-model="captureArea"
+                    value="full"
+                    class="sr-only peer"
+                  />
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 peer-checked:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <span class="text-xs text-center text-gray-600 peer-checked:text-blue-500 font-medium">完整报告</span>
+                  <div class="absolute inset-0 border-2 border-transparent rounded-lg peer-checked:border-blue-500"></div>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="animate-slide-in-left [animation-delay:200ms]">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 px-4 md:px-6">
+        <div class="animate-slide-in-left [animation-delay:200ms] bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-gray-100">
           <AddressSummary :data="analysisResult" />
         </div>
-        <div class="animate-slide-in-right [animation-delay:200ms]">
+        <div class="animate-slide-in-right [animation-delay:200ms] bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-gray-100">
           <WalletBalance
             :tokens="tokenBalances"
             :total-value="totalWalletValue"
@@ -113,19 +160,23 @@
         </div>
       </div>
       
-      <div class="mt-8 animate-fade-in-up [animation-delay:400ms]">
-        <TransactionCharts
-          :transactions="transactions"
-          :address-stats="addressStats"
-        />
+      <div class="mt-8 px-4 md:px-6 animate-fade-in-up [animation-delay:400ms]">
+        <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-gray-100 p-6">
+          <TransactionCharts
+            :transactions="transactions"
+            :address-stats="addressStats"
+          />
+        </div>
       </div>
       
-      <div class="mt-8 animate-fade-in-up [animation-delay:600ms]">
-        <TransactionList
-          :transactions="transactions"
-          :user-address="address"
-          @copy-address="copyToClipboard"
-        />
+      <div class="mt-8 px-4 md:px-6 pb-8 animate-fade-in-up [animation-delay:600ms]">
+        <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-gray-100">
+          <TransactionList
+            :transactions="transactions"
+            :user-address="address"
+            @copy-address="copyToClipboard"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -168,6 +219,9 @@ const addressStats = ref({ in: {}, out: {} })
 
 // 分析结果
 const analysisResult = ref(null)
+
+// 截图区域选择
+const captureArea = ref('summary')
 
 // 检测地址类型
 const detectAddressType = (address) => {
@@ -444,7 +498,13 @@ const isAndroid = computed(() => {
 const copyShareLink = () => {
   const baseUrl = window.location.origin
   const shareText = `${baseUrl}/Blockchain-analysis/#/${address.value}`
-  copyToClipboard(shareText)
+  try {
+    navigator.clipboard.writeText(shareText)
+    showToast('链接已复制，去分享吧', 'top')
+  } catch (err) {
+    console.error('复制失败:', err)
+    showToast('复制失败，请重试', 'top', 'error')
+  }
   showOptions.value = false
 }
 
@@ -470,7 +530,27 @@ const shareViaSystem = async () => {
 }
 
 const captureScreenshot = async (type) => {
-  const element = document.querySelector('.analysis-results')
+  let element
+  switch (captureArea.value) {
+    case 'summary':
+      // 只截取概要信息（地址概要和钱包余额部分）
+      element = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2')
+      break
+    case 'charts':
+      // 截取到图表部分
+      element = document.querySelector('.analysis-results')
+      const transactionList = element.querySelector('.mt-8:last-child')
+      if (transactionList) {
+        transactionList.style.display = 'none'
+      }
+      break
+    case 'full':
+    default:
+      // 截取完整报告
+      element = document.querySelector('.analysis-results')
+      break
+  }
+
   if (!element) return
   
   try {
@@ -488,12 +568,92 @@ const captureScreenshot = async (type) => {
     // 等待下一帧确保 DOM 更新
     await nextTick()
 
+    // 处理图片加载错误
+    const images = element.getElementsByTagName('img')
+    const defaultTokenLogo = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiPjxwYXRoIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTIgOHYxNm0tOC04aDE2TTMuMyA1LjNsMTcuNyAxNy43TTIwLjcgNS4zTDMgMjMiLz48L3N2Zz4='
+
+    // 保存原始src和样式
+    const originalSrcs = Array.from(images).map(img => img.src)
+    const originalStyles = window.getComputedStyle(element)
+    const originalBackground = element.style.background
+    const charts = element.querySelectorAll('.echarts')
+    const originalChartSizes = Array.from(charts).map(chart => ({
+      width: chart.style.width,
+      height: chart.style.height
+    }))
+
+    // 替换可能失败的图片
+    for (const img of images) {
+      if (img.src.includes('tronscan.org')) {
+        img.onerror = () => {
+          img.src = defaultTokenLogo
+        }
+      }
+    }
+
+    // 等待所有图片加载完成
+    await Promise.all(Array.from(images).map(img => {
+      if (img.complete) return Promise.resolve()
+      return new Promise((resolve) => {
+        img.onload = resolve
+        img.onerror = () => {
+          img.src = defaultTokenLogo
+          resolve()
+        }
+      })
+    }))
+
+    // 等待图表重绘
+    const echartsInstances = charts.length ? Array.from(charts).map(chart => echarts.getInstanceByDom(chart)) : []
+    echartsInstances.forEach(instance => {
+      if (instance) {
+        instance.resize()
+      }
+    })
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    // 截图配置
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#f9fafb',
       logging: false,
-      allowTaint: true
+      allowTaint: true,
+      width: element.offsetWidth,
+      height: element.offsetHeight,
+      onclone: (clonedDoc) => {
+        const clonedElement = clonedDoc.querySelector('.analysis-results')
+        if (clonedElement) {
+          // 复制原始样式
+          clonedElement.style.background = originalBackground
+          clonedElement.style.padding = originalStyles.padding
+          clonedElement.style.margin = originalStyles.margin
+          clonedElement.style.borderRadius = originalStyles.borderRadius
+          clonedElement.style.boxShadow = originalStyles.boxShadow
+
+          // 处理图片
+          const clonedImages = clonedElement.getElementsByTagName('img')
+          Array.from(clonedImages).forEach((img, index) => {
+            if (img.src.includes('tronscan.org')) {
+              img.src = defaultTokenLogo
+            }
+          })
+
+          // 处理图表
+          const clonedCharts = clonedElement.querySelectorAll('.echarts')
+          Array.from(clonedCharts).forEach((chart, index) => {
+            if (originalChartSizes[index]) {
+              chart.style.width = originalChartSizes[index].width
+              chart.style.height = originalChartSizes[index].height
+            }
+          })
+        }
+      }
+    })
+
+    // 恢复原始图片src
+    Array.from(images).forEach((img, index) => {
+      img.src = originalSrcs[index]
     })
 
     // 移除加载提示
@@ -508,10 +668,10 @@ const captureScreenshot = async (type) => {
             'image/png': blob
           })
         ])
-        showToast('图片已保存到剪贴板')
+        showToast('图片已保存到剪贴板', 'top')
       } catch (err) {
         console.error('保存到剪贴板失败:', err)
-        showToast('保存到剪贴板失败，请重试', 'error')
+        showToast('保存到剪贴板失败，请重试', 'top', 'error')
       }
     } else {
       // 保存为文件
@@ -519,22 +679,37 @@ const captureScreenshot = async (type) => {
       link.download = `blockchain-analysis-${address.value}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
-      showToast('图片已保存')
+      showToast('图片已保存', 'top')
+    }
+
+    // 如果是 charts 模式，恢复交易列表显示
+    if (captureArea.value === 'charts') {
+      const transactionList = document.querySelector('.analysis-results .mt-8:last-child')
+      if (transactionList) {
+        transactionList.style.display = ''
+      }
     }
 
   } catch (err) {
     console.error('截图失败:', err)
-    showToast('保存失败，请重试', 'error')
+    showToast('保存失败，请重试', 'top', 'error')
   } finally {
     showOptions.value = false
   }
 }
 
-const showToast = (message, type = 'success') => {
+const showToast = (message, position = 'top', type = 'success') => {
+  // 移除已存在的提示框
+  const existingToast = document.querySelector('.copy-toast')
+  if (existingToast) {
+    document.body.removeChild(existingToast)
+  }
+
   const toast = document.createElement('div')
-  toast.className = `copy-toast ${type === 'error' ? 'bg-red-500' : ''}`
+  toast.className = `copy-toast ${type === 'error' ? 'bg-red-500' : 'bg-black/80'} ${position === 'top' ? 'top-5' : 'bottom-5'}`
   toast.textContent = message
   document.body.appendChild(toast)
+  
   setTimeout(() => {
     if (toast.parentNode) {
       document.body.removeChild(toast)
@@ -545,44 +720,11 @@ const showToast = (message, type = 'success') => {
 // 复制功能
 const copyToClipboard = async (text) => {
   try {
-    // 创建一个临时的textarea元素
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    
-    // 选择文本
-    textarea.select()
-    textarea.setSelectionRange(0, 99999)
-    
-    // 执行复制命令
-    document.execCommand('copy')
-    
-    // 移除临时元素
-    document.body.removeChild(textarea)
-    
-    // 移除已存在的提示框（如果有）
-    const existingToast = document.querySelector('.copy-toast')
-    if (existingToast) {
-      document.body.removeChild(existingToast)
-    }
-    
-    // 创建新的提示框
-    const toast = document.createElement('div')
-    toast.className = 'copy-toast'
-    toast.textContent = '地址已复制'
-    document.body.appendChild(toast)
-    
-    // 2秒后移除提示框
-    setTimeout(() => {
-      if (toast.parentNode) {
-        document.body.removeChild(toast)
-      }
-    }, 2000)
+    await navigator.clipboard.writeText(text)
+    showToast('地址已复制', 'top')
   } catch (err) {
     console.error('复制失败:', err)
-    alert('复制失败，请手动复制')
+    showToast('复制失败，请手动复制', 'top', 'error')
   }
 }
 
@@ -639,7 +781,19 @@ const handleAddress = (newAddress) => {
 
 /* 复制提示样式 */
 :global(.copy-toast) {
-  @apply fixed bottom-5 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-up;
+  @apply fixed left-1/2 -translate-x-1/2 text-white px-6 py-3 rounded-lg shadow-lg z-50;
+  animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
 }
 
 /* 截图加载样式 */
@@ -649,5 +803,16 @@ const handleAddress = (newAddress) => {
 
 .analysis-results {
   min-height: calc(100vh - 180px);
+  @apply bg-gray-50;
+}
+
+/* 添加响应式容器最大宽度 */
+.analysis-results > div {
+  @apply max-w-7xl mx-auto;
+}
+
+/* 添加渐变背景 */
+.hero-section {
+  @apply bg-gradient-to-br from-blue-500 to-indigo-600;
 }
 </style>

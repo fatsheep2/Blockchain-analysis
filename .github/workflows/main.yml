@@ -66,4 +66,4 @@ jobs:
     - name: Notify Deployment
       run: |
         echo "🚀 Deployment completed!"
-        echo "Your site is now live at: https://${{ github.repository_owner }}.github.io/Blockchain-analysis/"
+        echo "Your site is now live at: https://${{ github.repository_owner }}.github.io"

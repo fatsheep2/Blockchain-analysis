@@ -184,7 +184,7 @@ const initCharts = () => {
       if (inData && inData.length > 0) {
         const option = {
           title: {
-            text: '转入地址分布',
+            // text: '转入地址分布',
             left: 'center'
           },
           tooltip: {
@@ -252,7 +252,7 @@ const initCharts = () => {
       if (outData && outData.length > 0) {
         const option = {
           title: {
-            text: '转出地址分布',
+            // text: '转出地址分布',
             left: 'center'
           },
           tooltip: {

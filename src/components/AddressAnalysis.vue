@@ -260,13 +260,13 @@ const analyzeAddress = async () => {
 
     addressType.value = detectedType
 
-    // 更新URL以包含分析地址（使用hash模式）
+/*     // 更新URL以包含分析地址（使用hash模式）
     const baseUrl = window.location.origin
     const newUrl = `${baseUrl}/Blockchain-analysis/#/${address.value}`
     // 只有当URL不同时才更新
     if (window.location.href !== newUrl) {
       window.history.replaceState({ path: newUrl }, '', newUrl)
-    }
+    } */
 
     if (detectedType === 'TRX') {
         // 获取代币余额
@@ -497,7 +497,7 @@ const isAndroid = computed(() => {
 
 const copyShareLink = () => {
   const baseUrl = window.location.origin
-  const shareText = `${baseUrl}/Blockchain-analysis/#/${address.value}`
+  const shareText = `${baseUrl}/#/${address.value}`
   try {
     navigator.clipboard.writeText(shareText)
     showToast('链接已复制，去分享吧', 'top')

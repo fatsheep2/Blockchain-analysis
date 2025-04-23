@@ -511,12 +511,13 @@ const copyShareLink = () => {
 const shareViaSystem = async () => {
   try {
     const baseUrl = window.location.origin
-    const shareText = `${baseUrl}/Blockchain-analysis/#/${address.value}`
+    // const shareText = `${baseUrl}/Blockchain-analysis/#/${address.value}`
+    const shareText = `${baseUrl}/#/${address.value}`
     
     if (navigator.share) {
       await navigator.share({
         title: '区块链地址分析报告',
-        text: `地址 ${address.value} 的分析报告`,
+        text: `🚀 我刚刚查看了地址 ${address.value.slice(0, 6)}...${address.value.slice(-4)} 的分析报告。这个地址的交易情况和活跃度真的很有意思，值得看看！快来了解更多详情吧！🔍💰`,
         url: shareText
       })
     }

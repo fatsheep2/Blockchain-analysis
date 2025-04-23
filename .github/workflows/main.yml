@@ -62,8 +62,9 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./dist
         commit_message: "Deploy: ${{ github.event.head_commit.message }}"
+        cname: ${{ secrets.DOMAIN }}
     
     - name: Notify Deployment
       run: |
         echo "🚀 Deployment completed!"
-        echo "Your site is now live at: https://${{ github.repository_owner }}.github.io"
+        echo "Your site is now live at: https://${{ github.repository_owner }}"

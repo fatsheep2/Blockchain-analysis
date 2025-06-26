@@ -3,7 +3,15 @@
     <div class="list-header">
       <h3>交易记录</h3>
       <div class="list-stats">
-        <span>共 {{ transactions.length }} 笔交易</span>
+        <span>共 {{ totalTransactions }} 笔交易</span>
+        <div class="pagination-controls">
+          <select v-model="pageSize" @change="handlePageSizeChange" class="page-size-select">
+            <option value="10">10条/页</option>
+            <option value="20">20条/页</option>
+            <option value="50">50条/页</option>
+            <option value="100">100条/页</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="list-content">
@@ -24,7 +32,7 @@
           状态 {{ getSortIcon('status') }}
         </div>
       </div>
-      <div v-for="tx in sortedTransactions" :key="tx.transaction_id" class="transaction-item">
+      <div v-for="tx in paginatedTransactions" :key="tx.transaction_id" class="transaction-item">
         <div class="col" data-label="时间">{{ formatDate(tx.block_ts / 1000) }}</div>
         <div class="col" data-label="类型">
           <span :class="['tx-type', tx.from_address === userAddress ? 'out' : 'in']">
@@ -53,6 +61,41 @@
         </div>
       </div>
     </div>
+    
+    <!-- 分页控件 -->
+    <div class="pagination-container" v-if="totalPages > 1">
+      <div class="pagination-info">
+        显示第 {{ startIndex + 1 }} - {{ endIndex }} 条，共 {{ totalTransactions }} 条
+      </div>
+      <div class="pagination-controls">
+        <button 
+          @click="goToPage(currentPage - 1)" 
+          :disabled="currentPage === 1"
+          class="pagination-btn"
+        >
+          上一页
+        </button>
+        
+        <div class="page-numbers">
+          <button 
+            v-for="page in visiblePages" 
+            :key="page"
+            @click="goToPage(page)"
+            :class="['page-btn', { active: page === currentPage }]"
+          >
+            {{ page }}
+          </button>
+        </div>
+        
+        <button 
+          @click="goToPage(currentPage + 1)" 
+          :disabled="currentPage === totalPages"
+          class="pagination-btn"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -78,6 +121,10 @@ const sortConfig = ref({
   direction: 'desc'
 })
 
+// 分页相关状态
+const currentPage = ref(1)
+const pageSize = ref(20)
+
 const sort = (key) => {
   if (sortConfig.value.key === key) {
     // 如果点击的是当前排序的列，则切换排序方向
@@ -87,6 +134,8 @@ const sort = (key) => {
     sortConfig.value.key = key
     sortConfig.value.direction = 'desc'
   }
+  // 重置到第一页
+  currentPage.value = 1
 }
 
 const sortedTransactions = computed(() => {
@@ -132,6 +181,44 @@ const sortedTransactions = computed(() => {
   return sorted
 })
 
+// 分页计算
+const totalTransactions = computed(() => sortedTransactions.value.length)
+const totalPages = computed(() => Math.ceil(totalTransactions.value / pageSize.value))
+const startIndex = computed(() => (currentPage.value - 1) * pageSize.value)
+const endIndex = computed(() => Math.min(startIndex.value + pageSize.value, totalTransactions.value))
+
+const paginatedTransactions = computed(() => {
+  return sortedTransactions.value.slice(startIndex.value, endIndex.value)
+})
+
+// 可见页码计算
+const visiblePages = computed(() => {
+  const pages = []
+  const maxVisible = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages.value, start + maxVisible - 1)
+  
+  if (end - start + 1 < maxVisible) {
+    start = Math.max(1, end - maxVisible + 1)
+  }
+  
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  
+  return pages
+})
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+const handlePageSizeChange = () => {
+  currentPage.value = 1 // 重置到第一页
+}
+
 const getSortIcon = (key) => {
   if (sortConfig.value.key !== key) {
     return '↕️'
@@ -171,8 +258,19 @@ const copyAddress = (address) => {
 }
 
 .list-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   font-size: 14px;
   color: #64748b;
+}
+
+.page-size-select {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  font-size: 12px;
 }
 
 .list-content {
@@ -201,19 +299,11 @@ const copyAddress = (address) => {
 .sortable {
   cursor: pointer;
   user-select: none;
-  transition: all 0.2s ease;
+  transition: color 0.2s;
 }
 
 .sortable:hover {
   color: #3b82f6;
-}
-
-.list-columns .col:nth-child(4) {
-  text-align: right;
-}
-
-.list-columns .col:last-child {
-  text-align: center;
 }
 
 .transaction-item {
@@ -221,57 +311,56 @@ const copyAddress = (address) => {
   grid-template-columns: 180px 100px minmax(200px, 1fr) 150px 100px;
   gap: 12px;
   padding: 12px;
-  align-items: center;
-  transition: all 0.3s ease;
   border-bottom: 1px solid #f1f5f9;
+  align-items: center;
+  transition: background-color 0.2s;
 }
 
 .transaction-item:hover {
-  background: #f8fafc;
+  background-color: #f8fafc;
+}
+
+.transaction-item:last-child {
+  border-bottom: none;
 }
 
 .transaction-item .col {
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 14px;
+  color: #334155;
+  word-break: break-all;
 }
 
-.transaction-item .col:nth-child(4) {
-  text-align: right;
-}
-
-.transaction-item .col:last-child {
-  text-align: center;
-}
-
-.tx-type, .tx-status {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
+.tx-type {
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-  min-width: 60px;
+  font-weight: 500;
 }
 
 .tx-type.in {
-  background: #dcfce7;
-  color: #16a34a;
+  background-color: #dcfce7;
+  color: #166534;
 }
 
 .tx-type.out {
-  background: #fee2e2;
+  background-color: #fef2f2;
   color: #dc2626;
 }
 
+.tx-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .tx-status.success {
-  background: #dcfce7;
-  color: #16a34a;
+  background-color: #dcfce7;
+  color: #166534;
 }
 
 .tx-status.failed {
-  background: #fee2e2;
+  background-color: #fef2f2;
   color: #dc2626;
 }
 
@@ -279,117 +368,140 @@ const copyAddress = (address) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px;
-  background: #f8fafc;
-  border-radius: 8px;
 }
 
 .address-text {
-  font-family: monospace;
-  font-size: 13px;
-  color: #1e293b;
-  word-break: break-all;
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
 }
 
 .copy-btn {
   background: none;
   border: none;
-  padding: 4px;
   cursor: pointer;
-  color: #64748b;
-  transition: all 0.3s ease;
+  padding: 2px;
   border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
 .copy-btn:hover {
-  background: #e2e8f0;
-  color: #3b82f6;
+  background-color: #e2e8f0;
 }
 
-.icon-copy:before {
-  content: "📋";
+.icon-copy {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3'/%3E%3C/svg%3E");
+  background-size: contain;
 }
 
-@media (max-width: 1200px) {
-  .list-content {
-    min-width: 700px;
-  }
-  
-  .list-columns {
-    grid-template-columns: 140px 80px minmax(180px, 1fr) 120px 80px;
-  }
-  
+/* 分页样式 */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 4px;
+}
+
+.page-btn {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 40px;
+  transition: all 0.2s;
+}
+
+.page-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.page-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
   .transaction-item {
-    grid-template-columns: 140px 80px minmax(180px, 1fr) 120px 80px;
-  }
-}
-
-@media (max-width: 768px) {
-  .transaction-list {
-    padding: 12px;
-    margin-top: 15px;
-    overflow-x: hidden;
-  }
-
-  .list-content {
-    min-width: auto;
-    width: 100%;
-  }
-
-  .list-columns {
-    display: none;
-  }
-
-  .transaction-item {
-    display: flex;
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 8px;
-    background: #f8fafc;
-    border-radius: 8px;
-    margin-bottom: 12px;
     padding: 16px;
-    border-bottom: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 8px;
   }
-
+  
   .transaction-item .col {
-    width: 100%;
-    padding: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    text-align: right;
-    border-bottom: 1px solid #f1f5f9;
-    white-space: normal;
   }
-
-  .transaction-item .col:last-child {
-    border-bottom: none;
-    text-align: right;
-  }
-
+  
   .transaction-item .col::before {
-    content: attr(data-label);
+    content: attr(data-label) ": ";
     font-weight: 600;
     color: #64748b;
-    flex-shrink: 0;
-    margin-right: 12px;
   }
-
-  .address-container {
-    flex: 1;
-    justify-content: flex-end;
-    background: transparent;
-    padding: 0;
+  
+  .list-columns {
+    display: none;
   }
-
-  .address-text {
-    font-size: 13px;
-    text-align: right;
-    word-break: break-all;
+  
+  .pagination-container {
+    flex-direction: column;
+    gap: 12px;
   }
-
-  .tx-type, .tx-status {
-    margin-left: auto;
+  
+  .page-numbers {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 </style>

@@ -1,26 +1,73 @@
 const TRONSCAN_API_KEY = 'f63c8a63-e0d6-4a04-a9b5-1d41b5e668cc'
 const BASE_URL = 'https://apilist.tronscanapi.com/api'
 
-export const getTokenBalances = async (address) => {
-  const response = await fetch(`${BASE_URL}/account/tokens?address=${address}&start=0&limit=20`)
+// 通用请求头
+const getHeaders = () => ({
+  'Accept': 'application/json',
+  'Content-Type': 'application/json',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+  'Origin': 'https://tronscan.org',
+  'Referer': 'https://tronscan.org/'
+})
+
+export const getTokenBalances = async (address, start = 0, limit = 50) => {
+  const response = await fetch(`${BASE_URL}/account/tokens?address=${address}&start=${start}&limit=${limit}`, {
+    headers: getHeaders()
+  })
   if (!response.ok) throw new Error('获取代币余额失败')
   return response.json()
 }
 
-export const getTransactions = async (address) => {
-  const response = await fetch(`${BASE_URL}/filter/trc20/transfers?limit=20&start=0&sort=-timestamp&count=true&filterTokenValue=0&relatedAddress=${address}`)
+export const getTransactions = async (address, start = 0, limit = 50) => {
+  const response = await fetch(`${BASE_URL}/filter/trc20/transfers?limit=${limit}&start=${start}&sort=-timestamp&count=true&filterTokenValue=0&relatedAddress=${address}`, {
+    headers: getHeaders()
+  })
   if (!response.ok) throw new Error('获取交易数据失败')
   return response.json()
 }
 
+// 获取所有交易记录（分页获取）
+export const getAllTransactions = async (address, batchSize = 50) => {
+  let allTransactions = []
+  let start = 0
+  let hasMore = true
+  
+  while (hasMore) {
+    try {
+      const response = await getTransactions(address, start, batchSize)
+      
+      if (response.token_transfers && response.token_transfers.length > 0) {
+        allTransactions = allTransactions.concat(response.token_transfers)
+        start += batchSize
+        
+        // 如果返回的数据少于batchSize，说明已经获取完所有数据
+        if (response.token_transfers.length < batchSize) {
+          hasMore = false
+        }
+      } else {
+        hasMore = false
+      }
+    } catch (error) {
+      console.error(`获取第${start/batchSize + 1}页交易数据失败:`, error)
+      hasMore = false
+    }
+  }
+  
+  return allTransactions
+}
+
 export const getAccountInfo = async (address) => {
-  const response = await fetch(`${BASE_URL}/account?address=${address}`)
+  const response = await fetch(`${BASE_URL}/account?address=${address}`, {
+    headers: getHeaders()
+  })
   if (!response.ok) throw new Error('获取账户信息失败')
   return response.json()
 }
 
 export const getResourceInfo = async (address) => {
-  const response = await fetch(`${BASE_URL}/account/resourcev2?address=${address}&resourceType=0`)
+  const response = await fetch(`${BASE_URL}/account/resourcev2?address=${address}&resourceType=0`, {
+    headers: getHeaders()
+  })
   if (!response.ok) throw new Error('获取资源信息失败')
   return response.json()
 }

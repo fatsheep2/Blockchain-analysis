@@ -52,6 +52,31 @@
             </div>
           </div>
         </div>
+        
+        <!-- 获取所有交易记录选项 -->
+        <div class="flex items-center justify-center gap-3 mb-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              :checked="fetchAllTransactions"
+              @change="$emit('update:fetchAllTransactions', $event.target.checked)"
+              class="w-4 h-4 text-blue-600 bg-white/20 border-white/30 rounded focus:ring-blue-500 focus:ring-2"
+              :disabled="loading"
+            />
+            <span class="text-white/90 text-sm font-medium drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]">
+              获取所有交易记录
+            </span>
+          </label>
+          <div class="relative group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/70 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black/80 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
+              勾选后将获取该地址的所有交易记录（可能需要较长时间）
+              <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/80"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -80,8 +105,6 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
 const props = defineProps({
   address: {
     type: String,
@@ -102,10 +125,14 @@ const props = defineProps({
   showOptions: {
     type: Boolean,
     default: false
+  },
+  fetchAllTransactions: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['update:address', 'search', 'screenshot-click', 'capture'])
+const emit = defineEmits(['update:address', 'update:fetchAllTransactions', 'search', 'screenshot-click', 'capture'])
 
 const generateReport = () => {
   emit('search')

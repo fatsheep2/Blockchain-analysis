@@ -3,6 +3,7 @@
     <div class="hero-section animate-slide-in-left">
       <AddressHeader
         v-model:address="address"
+        v-model:fetchAllTransactions="fetchAllTransactions"
         :loading="loading"
         :address-type="addressType"
         :show-screenshot="!!analysisResult"
@@ -191,10 +192,20 @@ import WalletBalance from './WalletBalance.vue'
 import TransactionCharts from './TransactionCharts.vue'
 import TransactionList from './TransactionList.vue'
 import LoadingError from './LoadingError.vue'
-import { captureScreenshot as capture } from '../utils/screenshot'
 import { formatDate, formatAmount } from '../utils/formatter'
 import { useRoute } from 'vue-router'
 import html2canvas from 'html2canvas'
+// 导入API模块
+import { 
+  getTokenBalances, 
+  getAllTransactions, 
+  getTransactions,
+  getAccountInfo, 
+  getResourceInfo, 
+  detectAddressType as apiDetectAddressType,
+  analyzeProfile as apiAnalyzeProfile,
+  calculateInOutValues as apiCalculateInOutValues
+} from '../api/tronApi'
 
 const props = defineProps({
   startAddressAnalysis: {
@@ -223,19 +234,12 @@ const analysisResult = ref(null)
 // 截图区域选择
 const captureArea = ref('summary')
 
+// 获取所有交易记录的选项
+const fetchAllTransactions = ref(false)
+
 // 检测地址类型
 const detectAddressType = (address) => {
-  // 以太坊地址格式：0x开头的40位十六进制字符
-  const ethRegex = /^0x[a-fA-F0-9]{40}$/
-  // 波场地址格式：T开头的33位字符
-  const tronRegex = /^T[a-zA-Z0-9]{33}$/
-  
-  if (ethRegex.test(address)) {
-    return 'ETH'
-  } else if (tronRegex.test(address)) {
-    return 'TRX'
-  }
-  return null
+  return apiDetectAddressType(address)
 }
 
 // 分析地址
@@ -260,27 +264,10 @@ const analyzeAddress = async () => {
 
     addressType.value = detectedType
 
-/*     // 更新URL以包含分析地址（使用hash模式）
-    const baseUrl = window.location.origin
-    const newUrl = `${baseUrl}/Blockchain-analysis/#/${address.value}`
-    // 只有当URL不同时才更新
-    if (window.location.href !== newUrl) {
-      window.history.replaceState({ path: newUrl }, '', newUrl)
-    } */
-
     if (detectedType === 'TRX') {
         // 获取代币余额
-        const tokenResponse = await fetch(`https://apilist.tronscanapi.com/api/account/tokens?address=${address.value}&start=0&limit=20`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Origin': 'https://tronscan.org',
-            'Referer': 'https://tronscan.org/'
-          }
-        })
-        if (tokenResponse.ok) {
-            const tokenData = await tokenResponse.json()
+        try {
+            const tokenData = await getTokenBalances(address.value)
             if (tokenData.data) {
                 // 处理代币数据
                 const tokens = tokenData.data.map(token => ({
@@ -297,100 +284,83 @@ const analyzeAddress = async () => {
                     contractInfo: tokenData.contractInfo[token.tokenId] || null
                 }))
                 
-                // 添加 TRX 代币
-                const trxToken = tokens.find(t => t.symbol === 'TRX')
-                if (!trxToken) {
-                    tokens.unshift({
-                        symbol: 'TRX',
-                        name: 'TRON',
-                        balance: addressInfo.value?.balance / 1e6 || 0,
-                        usdtValue: (addressInfo.value?.balance / 1e6) * (tokenData.data.find(t => t.tokenAbbr === 'trx')?.tokenPriceInUsd || 0),
-                        price: tokenData.data.find(t => t.tokenAbbr === 'trx')?.tokenPriceInUsd || 0,
-                        logo: 'https://static.tronscan.org/production/logo/trx.png',
-                        type: 'trc10',
-                        holders: 0,
-                        transfers: 0,
-                        isContract: false,
-                        contractInfo: null
-                    })
-                }
-                
                 tokenBalances.value = tokens
                 totalWalletValue.value = tokens.reduce((sum, token) => sum + (token.usdtValue || 0), 0)
             }
+        } catch (err) {
+            console.error('获取代币余额失败:', err)
+            // 不抛出错误，继续执行
         }
 
         // 获取交易数据
-        const txResponse = await fetch(`https://apilist.tronscanapi.com/api/filter/trc20/transfers?limit=20&start=0&sort=-timestamp&count=true&filterTokenValue=0&relatedAddress=${address.value}`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Origin': 'https://tronscan.org',
-            'Referer': 'https://tronscan.org/'
-          }
-        })
-        if (!txResponse.ok) {
-            console.error('交易数据响应状态:', txResponse.status)
-            throw new Error('获取交易数据失败')
-        }
-        const txData = await txResponse.json()
-        console.log('交易数据:', txData)
-        if (!txData.token_transfers) {
-            console.error('交易数据格式错误:', txData)
-            throw new Error('交易数据格式错误')
-        }
-        transactions.value = txData.token_transfers
-
-        // 获取地址信息
-        const infoResponse = await fetch(`https://apilist.tronscanapi.com/api/account?address=${address.value}`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Origin': 'https://tronscan.org',
-            'Referer': 'https://tronscan.org/'
-          }
-        })
-        
-        // 获取资源信息
-        let resourceData = null
         try {
-            const resourceResponse = await fetch(`https://apilist.tronscanapi.com/api/account/resourcev2?address=${address.value}&resourceType=0`, {
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Origin': 'https://tronscan.org',
-                'Referer': 'https://tronscan.org/'
-              }
-            })
-            if (resourceResponse.ok) {
-                resourceData = await resourceResponse.json()
+            if (fetchAllTransactions.value) {
+                // 获取所有交易记录
+                console.log('正在获取所有交易记录...')
+                transactions.value = await getAllTransactions(address.value)
+                console.log(`成功获取 ${transactions.value.length} 条交易记录`)
+            } else {
+                // 获取前20条交易记录
+                const txData = await getTransactions(address.value, 0, 20)
+                if (!txData.token_transfers) {
+                    throw new Error('交易数据格式错误')
+                }
+                transactions.value = txData.token_transfers
+                console.log(`获取了 ${transactions.value.length} 条交易记录`)
             }
         } catch (err) {
-            console.log('获取资源信息失败:', err)
+            console.error('获取交易数据失败:', err)
+            throw new Error('获取交易数据失败')
         }
 
-        // 处理地址信息
-        if (infoResponse.ok) {
-            const infoData = await infoResponse.json()
+        // 获取地址信息
+        try {
+            const infoData = await getAccountInfo(address.value)
             addressInfo.value = infoData
-            if (resourceData) {
-                addressInfo.value.resources = resourceData
+            
+            // 获取资源信息
+            try {
+                const resourceData = await getResourceInfo(address.value)
+                if (resourceData) {
+                    addressInfo.value.resources = resourceData
+                }
+            } catch (err) {
+                console.log('获取资源信息失败:', err)
             }
+        } catch (err) {
+            console.error('获取地址信息失败:', err)
+            // 不抛出错误，继续执行
+        }
+
+        // 添加 TRX 代币到余额列表
+        if (addressInfo.value && !tokenBalances.value.find(t => t.symbol === 'TRX')) {
+            const trxToken = tokenBalances.value.find(t => t.tokenAbbr === 'trx')
+            const trxPrice = trxToken?.tokenPriceInUsd || 0
+            tokenBalances.value.unshift({
+                symbol: 'TRX',
+                name: 'TRON',
+                balance: addressInfo.value.balance / 1e6 || 0,
+                usdtValue: (addressInfo.value.balance / 1e6) * trxPrice,
+                price: trxPrice,
+                logo: 'https://static.tronscan.org/production/logo/trx.png',
+                type: 'trc10',
+                holders: 0,
+                transfers: 0,
+                isContract: false,
+                contractInfo: null
+            })
+            totalWalletValue.value = tokenBalances.value.reduce((sum, token) => sum + (token.usdtValue || 0), 0)
         }
 
         // 计算转入转出统计
-        const { totalIn, totalOut, addressStats: stats } = calculateInOutValues(transactions.value, address.value)
-        addressStats.value = { in: {}, out: {} }  // 先重置
+        const { totalIn, totalOut, addressStats: stats } = apiCalculateInOutValues(transactions.value, address.value)
         addressStats.value = stats
         console.log('地址统计:', addressStats.value)
 
         // 计算分析结果
         const totalTransactions = transactions.value.length
         const firstTransactionTime = getFirstTransactionTimestamp(transactions.value)
-        const transactionFrequency = analyzeProfile(transactions.value)
+        const transactionFrequency = apiAnalyzeProfile(transactions.value)
 
         // 计算TRX余额和质押比例
         const trxBalance = addressInfo.value ? addressInfo.value.balance / 1e6 : 0
@@ -432,58 +402,10 @@ const analyzeAddress = async () => {
 }
 
 // 辅助函数
-const calculateInOutValues = (transactions, address) => {
-  let totalIn = 0
-  let totalOut = 0
-  const addressStats = {
-    in: {},
-    out: {}
-  }
-  
-  transactions.forEach(tx => {
-    const amount = parseFloat(tx.quant || 0) / 1e6
-    if (tx.from_address === address) {
-      totalOut += amount
-      addressStats.out[tx.to_address] = (addressStats.out[tx.to_address] || 0) + amount
-    } else {
-      totalIn += amount
-      addressStats.in[tx.from_address] = (addressStats.in[tx.from_address] || 0) + amount
-    }
-  })
-  
-  return { totalIn, totalOut, addressStats }
-}
-
 const getFirstTransactionTimestamp = (transactions) => {
   if (!transactions || transactions.length === 0) return null
   // 获取最早的交易时间
   return transactions[transactions.length - 1]?.block_ts / 1000
-}
-
-const analyzeProfile = (transactions) => {
-  if (!transactions || transactions.length === 0) {
-    return '无交易'
-  }
-
-  const totalTransactions = transactions.length
-  const firstTx = getFirstTransactionTimestamp(transactions)
-  const now = Date.now() / 1000
-  const days = Math.max(1, (now - firstTx) / (24 * 60 * 60)) // 至少1天
-  const frequency = totalTransactions / days
-
-  let profileType = '普通用户'
-
-  if (frequency > 10) {
-    profileType = '高频用户'
-  } else if (frequency > 3) {
-    profileType = '活跃用户'
-  } else if (frequency > 0.1) {
-    profileType = '普通用户'
-  } else {
-    profileType = '低频用户'
-  }
-
-  return `${profileType} (${frequency.toFixed(2)}笔/天)`
 }
 
 // 截图相关
@@ -511,7 +433,6 @@ const copyShareLink = () => {
 const shareViaSystem = async () => {
   try {
     const baseUrl = window.location.origin
-    // const shareText = `${baseUrl}/Blockchain-analysis/#/${address.value}`
     const shareText = `${baseUrl}/#/${address.value}`
     
     if (navigator.share) {
@@ -604,167 +525,139 @@ const captureScreenshot = async (type) => {
       })
     }))
 
-    // 等待图表重绘
-    const echartsInstances = charts.length ? Array.from(charts).map(chart => echarts.getInstanceByDom(chart)) : []
-    echartsInstances.forEach(instance => {
-      if (instance) {
-        instance.resize()
-      }
-    })
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // 设置背景色确保截图效果
+    element.style.background = 'white'
 
-    // 截图配置
+    // 调整图表大小以适应截图
+    charts.forEach(chart => {
+      chart.style.width = '100%'
+      chart.style.height = '300px'
+    })
+
+    // 等待图表重新渲染
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // 生成截图
     const canvas = await html2canvas(element, {
+      backgroundColor: '#ffffff',
       scale: 2,
       useCORS: true,
-      backgroundColor: '#f9fafb',
-      logging: false,
       allowTaint: true,
+      logging: false,
       width: element.offsetWidth,
-      height: element.offsetHeight,
-      onclone: (clonedDoc) => {
-        const clonedElement = clonedDoc.querySelector('.analysis-results')
-        if (clonedElement) {
-          // 复制原始样式
-          clonedElement.style.background = originalBackground
-          clonedElement.style.padding = originalStyles.padding
-          clonedElement.style.margin = originalStyles.margin
-          clonedElement.style.borderRadius = originalStyles.borderRadius
-          clonedElement.style.boxShadow = originalStyles.boxShadow
-
-          // 处理图片
-          const clonedImages = clonedElement.getElementsByTagName('img')
-          Array.from(clonedImages).forEach((img, index) => {
-            if (img.src.includes('tronscan.org')) {
-              img.src = defaultTokenLogo
-            }
-          })
-
-          // 处理图表
-          const clonedCharts = clonedElement.querySelectorAll('.echarts')
-          Array.from(clonedCharts).forEach((chart, index) => {
-            if (originalChartSizes[index]) {
-              chart.style.width = originalChartSizes[index].width
-              chart.style.height = originalChartSizes[index].height
-            }
-          })
-        }
-      }
+      height: element.offsetHeight
     })
 
-    // 恢复原始图片src
-    Array.from(images).forEach((img, index) => {
-      img.src = originalSrcs[index]
+    // 恢复原始样式
+    element.style.background = originalBackground
+    charts.forEach((chart, index) => {
+      chart.style.width = originalChartSizes[index].width
+      chart.style.height = originalChartSizes[index].height
     })
 
     // 移除加载提示
     document.body.removeChild(loadingToast)
 
+    // 处理截图结果
     if (type === 'clipboard') {
-      // 保存到剪贴板
       try {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'image/png': blob
-          })
-        ])
-        showToast('图片已保存到剪贴板', 'top')
+        canvas.toBlob(async (blob) => {
+          if (navigator.clipboard && navigator.clipboard.write) {
+            const item = new ClipboardItem({ 'image/png': blob })
+            await navigator.clipboard.write([item])
+            showToast('截图已保存到剪贴板', 'top')
+          } else {
+            // 回退方案：下载文件
+            downloadCanvas(canvas, 'blockchain-analysis.png')
+          }
+        })
       } catch (err) {
         console.error('保存到剪贴板失败:', err)
-        showToast('保存到剪贴板失败，请重试', 'top', 'error')
+        downloadCanvas(canvas, 'blockchain-analysis.png')
       }
     } else {
-      // 保存为文件
-      const link = document.createElement('a')
-      link.download = `blockchain-analysis-${address.value}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
-      showToast('图片已保存', 'top')
-    }
-
-    // 如果是 charts 模式，恢复交易列表显示
-    if (captureArea.value === 'charts') {
-      const transactionList = document.querySelector('.analysis-results .mt-8:last-child')
-      if (transactionList) {
-        transactionList.style.display = ''
-      }
+      downloadCanvas(canvas, 'blockchain-analysis.png')
     }
 
   } catch (err) {
     console.error('截图失败:', err)
-    showToast('保存失败，请重试', 'top', 'error')
-  } finally {
-    showOptions.value = false
-  }
-}
-
-const showToast = (message, position = 'top', type = 'success') => {
-  // 移除已存在的提示框
-  const existingToast = document.querySelector('.copy-toast')
-  if (existingToast) {
-    document.body.removeChild(existingToast)
-  }
-
-  const toast = document.createElement('div')
-  toast.className = `copy-toast ${type === 'error' ? 'bg-red-500' : 'bg-black/80'} ${position === 'top' ? 'top-5' : 'bottom-5'}`
-  toast.textContent = message
-  document.body.appendChild(toast)
-  
-  setTimeout(() => {
-    if (toast.parentNode) {
-      document.body.removeChild(toast)
+    showToast('截图失败，请重试', 'top', 'error')
+    
+    // 移除加载提示
+    const loadingToast = document.querySelector('.screenshot-loading')
+    if (loadingToast) {
+      document.body.removeChild(loadingToast)
     }
-  }, 2000)
+  }
 }
 
-// 复制功能
+const downloadCanvas = (canvas, filename) => {
+  const link = document.createElement('a')
+  link.download = filename
+  link.href = canvas.toDataURL()
+  link.click()
+  showToast('截图已下载', 'top')
+}
+
 const copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text)
     showToast('地址已复制', 'top')
   } catch (err) {
     console.error('复制失败:', err)
-    showToast('复制失败，请手动复制', 'top', 'error')
+    showToast('复制失败，请重试', 'top', 'error')
   }
 }
 
-// 监听URL变化
-const handleUrlChange = () => {
-  const hash = window.location.hash
-  if (hash) {
-    const newAddress = hash.replace('#/', '')
-    if (newAddress && newAddress !== address.value) {
-      address.value = newAddress
-      analyzeAddress()
+const showToast = (message, position = 'top', type = 'success') => {
+  // 创建toast元素
+  const toast = document.createElement('div')
+  toast.className = `fixed ${position === 'top' ? 'top-4' : 'bottom-4'} left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all duration-300 ${
+    type === 'success' ? 'bg-green-500' : 'bg-red-500'
+  }`
+  toast.textContent = message
+  
+  document.body.appendChild(toast)
+  
+  // 3秒后自动移除
+  setTimeout(() => {
+    if (document.body.contains(toast)) {
+      document.body.removeChild(toast)
+    }
+  }, 3000)
+}
+
+// 监听路由变化
+watch(() => props.startAddressAnalysis, (newAddress) => {
+  if (newAddress && newAddress !== address.value) {
+    address.value = newAddress
+    analyzeAddress()
+  }
+}, { immediate: true })
+
+// 监听地址变化
+watch(address, (newAddress) => {
+  if (newAddress) {
+    // 更新URL
+    const baseUrl = window.location.origin
+    const newUrl = `${baseUrl}/#/${newAddress}`
+    if (window.location.href !== newUrl) {
+      window.history.replaceState({ path: newUrl }, '', newUrl)
     }
   }
-}
+})
 
-// 添加事件监听器
 onMounted(() => {
-  // 处理路由参数
+  // 如果有初始地址，开始分析
   if (props.startAddressAnalysis) {
-    console.log('从路由获取到地址:', props.startAddressAnalysis)
-    handleAddress(props.startAddressAnalysis)
+    address.value = props.startAddressAnalysis
+    analyzeAddress()
   }
-  
-  // 添加hashchange事件监听
-  window.addEventListener('hashchange', handleUrlChange)
 })
 
-// 移除事件监听器
 onBeforeUnmount(() => {
-  window.removeEventListener('hashchange', handleUrlChange)
+  // 清理工作
 })
-
-// 修改handleAddress方法
-const handleAddress = (newAddress) => {
-  if (!newAddress) return
-  console.log('处理地址:', newAddress)
-  address.value = newAddress
-  analyzeAddress()
-}
 </script>
 
 <style scoped>

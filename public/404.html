@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <title>Blockchain Analysis</title>
     <script type="text/javascript">
-        // 单页应用路由处理
-        var pathSegmentsToKeep = 1;
+        // 单页应用路由处理 - 适配根域名
+        var pathSegmentsToKeep = 0; // 根域名不需要保留路径段
         var l = window.location;
         l.replace(
             l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +

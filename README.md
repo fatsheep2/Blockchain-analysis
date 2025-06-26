@@ -22,7 +22,9 @@ Blockchain Analysis 是一个基于 Vue.js 的区块链地址分析应用。用�
 
 ## 在线演示
 
-🌐 **GitHub Pages**: [https://[用户名].github.io/Blockchain-analysis/](https://[用户名].github.io/Blockchain-analysis/)
+🌐 **官方网站**: [https://usdtscan.life](https://usdtscan.life)
+
+🌐 **GitHub Pages**: [https://fatsheep2.github.io/Blockchain-analysis/](https://fatsheep2.github.io/Blockchain-analysis/)
 
 ## 安装和运行
 

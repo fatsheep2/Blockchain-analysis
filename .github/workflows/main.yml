@@ -78,6 +78,15 @@ jobs:
         echo "Build output:"
         ls -la dist/
     
+    - name: Copy CNAME file
+      run: |
+        if [ -f "CNAME" ]; then
+          cp CNAME dist/
+          echo "CNAME file copied to dist/"
+        else
+          echo "CNAME file not found, skipping"
+        fi
+    
     - name: Setup Pages
       uses: actions/configure-pages@v4
     
@@ -95,5 +104,5 @@ jobs:
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       run: |
         echo "🚀 Deployment completed!"
-        echo "Your site is now live at: https://${{ github.repository_owner }}.github.io/${{ github.repository_name }}"
+        echo "Your site is now live at: https://usdtscan.life"
         echo "Or visit: https://${{ github.repository_owner }}.github.io/${{ github.repository_name }}/"

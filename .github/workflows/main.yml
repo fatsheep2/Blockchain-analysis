@@ -2,24 +2,33 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]  # 当推送到 main 分支时触发部署
+    branches: [ main, master ]  # 支持main和master分支
+  pull_request:
+    branches: [ main, master ]  # 在PR时也触发构建测试
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
+
+# 确保只有一个部署作业同时运行
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
     
     - name: Setup pnpm
       uses: pnpm/action-setup@v2
@@ -40,31 +49,30 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
     
-    - name: Debug workspace
-      run: |
-        echo "Current directory: $(pwd)"
-        echo "Directory contents:"
-        ls -la
-        echo "pnpm-workspace.yaml contents:"
-        cat pnpm-workspace.yaml
-    
     - name: Install Dependencies
       run: |
         pnpm config set store-dir ${{ env.STORE_PATH }}
-        pnpm install --no-frozen-lockfile
+        pnpm install --frozen-lockfile
     
     - name: Build
       run: pnpm run build
     
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./dist
-        commit_message: "Deploy: ${{ github.event.head_commit.message }}"
-        cname: ${{ secrets.DOMAIN }}
+        path: './dist'
+    
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     
     - name: Notify Deployment
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       run: |
         echo "🚀 Deployment completed!"
-        echo "Your site is now live at: https://${{ github.repository_owner }}"
+        echo "Your site is now live at: https://${{ github.repository_owner }}.github.io/${{ github.repository_name }}"
+        echo "Or visit: https://${{ github.repository_owner }}.github.io/${{ github.repository_name }}/"

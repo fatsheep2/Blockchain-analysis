@@ -7,7 +7,7 @@ import autoprefixer from 'autoprefixer'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
-  base: '/', // 注意大小写，与仓库名称完全匹配
+  base: '/Blockchain-analysis/', // 修改为仓库名称，确保GitHub Pages正确加载资源
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

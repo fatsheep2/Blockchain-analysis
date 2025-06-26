@@ -3,5 +3,3 @@ ignoredBuiltDependencies:
 
 packages:
   - '.'
-  - 'src'
-  - 'public'

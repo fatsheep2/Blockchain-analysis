@@ -20,6 +20,10 @@ Blockchain Analysis 是一个基于 Vue.js 的区块链地址分析应用。用�
 - ECharts
 - html2canvas
 
+## 在线演示
+
+🌐 **GitHub Pages**: [https://[用户名].github.io/Blockchain-analysis/](https://[用户名].github.io/Blockchain-analysis/)
+
 ## 安装和运行
 
 ### 安装依赖
@@ -48,12 +52,34 @@ pnpm run build
 pnpm run preview
 ```
 
+### 本地测试构建
+
+```bash
+chmod +x test-build.sh
+./test-build.sh
+```
+
+## 自动部署
+
+本项目配置了GitHub Actions自动部署到GitHub Pages：
+
+1. **推送代码到main分支**会自动触发部署
+2. **部署完成后**可通过GitHub Pages访问
+3. **支持PR构建测试**，确保代码质量
+
+### 部署设置
+
+1. 进入仓库设置 → Pages
+2. 选择 "GitHub Actions" 作为源
+3. 推送代码到main分支即可自动部署
+
 ## 目录结构
 
 - `src/main.js`：应用程序入口文件。
 - `src/App.vue`：应用程序主组件。
 - `src/components/`：包含各种功能组件。
 - `src/utils/`：包含工具函数。
+- `.github/workflows/`：GitHub Actions配置。
 
 ## 贡献
 

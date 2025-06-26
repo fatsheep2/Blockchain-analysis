@@ -28,7 +28,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
     
     - name: Setup pnpm
       uses: pnpm/action-setup@v2
@@ -49,13 +48,28 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
     
+    - name: Debug project structure
+      run: |
+        echo "Current directory: $(pwd)"
+        echo "Directory contents:"
+        ls -la
+        echo "Package.json contents:"
+        cat package.json
+        echo "pnpm-workspace.yaml contents:"
+        cat pnpm-workspace.yaml
+    
     - name: Install Dependencies
       run: |
         pnpm config set store-dir ${{ env.STORE_PATH }}
         pnpm install --frozen-lockfile
+        echo "Dependencies installed successfully"
     
     - name: Build
-      run: pnpm run build
+      run: |
+        pnpm run build
+        echo "Build completed successfully"
+        echo "Build output:"
+        ls -la dist/
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
